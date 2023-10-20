@@ -82,6 +82,10 @@ jobs:
         working-directory: ./Backend
         run: cp env .env
 
+      - name: try
+        working-directory: ./Backend
+        run: cat .env
+
       - name: Migration
         working-directory: ./Backend
         run: go run ./cmd/migrate/migrate.go
