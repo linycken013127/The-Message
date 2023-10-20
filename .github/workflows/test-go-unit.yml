@@ -84,7 +84,7 @@ jobs:
 
       - name: try
         working-directory: ./Backend
-        run: cat .env
+        run: echo ${{ secrets.DB_DATABASE }}
 
       - name: Migration
         working-directory: ./Backend
