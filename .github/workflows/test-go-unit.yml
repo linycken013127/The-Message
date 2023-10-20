@@ -68,7 +68,7 @@ jobs:
 
   acceptance_test:
     needs: unit_test
-    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    if: github.event.pull_request.merged
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
