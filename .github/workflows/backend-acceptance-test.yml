@@ -11,6 +11,16 @@ env:
 jobs:
   acceptance_test:
     if: github.event.pull_request.merged == true
+    services:
+      mysql:
+        image: mysql:8.1.0
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.DB_ROOT_PASSWORD }}
+          MYSQL_DATABASE: test
+          MYSQL_USER: user
+          MYSQL_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        ports:
+          - "3306:3306"
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
