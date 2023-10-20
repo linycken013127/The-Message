@@ -78,6 +78,9 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      - name: Env handle
+        working-directory: ./Backend
+        run: cp env .env
 
       - name: Migration
         working-directory: ./Backend
