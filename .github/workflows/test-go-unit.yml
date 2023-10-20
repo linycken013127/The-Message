@@ -18,17 +18,6 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    services:
-      mysql:
-        image: mysql:8.1.0
-        env:
-          MYSQL_ROOT_PASSWORD: ${{ secrets.DB_ROOT_PASSWORD }}
-          MYSQL_DATABASE: test
-          MYSQL_USER: user
-          MYSQL_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        ports:
-          - "3306:3306"
-
     steps:
       - uses: actions/checkout@v3
 
@@ -69,6 +58,18 @@ jobs:
   acceptance_test:
     needs: unit_test
     if: github.event_name == 'push'
+
+    services:
+      mysql:
+        image: mysql:8.1.0
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.DB_ROOT_PASSWORD }}
+          MYSQL_DATABASE: test
+          MYSQL_USER: user
+          MYSQL_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        ports:
+          - "3306:3306"
+    
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
