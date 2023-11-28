@@ -23,14 +23,18 @@ func RegisterPlayerHandler(opts *PlayerHandlerOptions) {
 	}
 
 	opts.Engine.GET("/api/v1/players/:playerId/player-cards", handler.GetPlayerCards)
-	opts.Engine.POST("/api/v1/players/:playerId/player-cards/:cardId", handler.PlayCard)
+	opts.Engine.POST("/api/v1/players/:playerId/player-cards", handler.PlayCard)
 }
 
 func (p *PlayerHandler) PlayCard(c *gin.Context) {
 	playerId, _ := strconv.Atoi(c.Param("playerId"))
-	cardId, _ := strconv.Atoi(c.Param("cardId"))
+	json := make(map[string]int)
+	err := c.BindJSON(&json)
+	if err != nil {
+		return
+	}
 
-	result, err := p.playerService.PlayCard(c, playerId, cardId)
+	result, err := p.playerService.PlayCard(c, playerId, json["card_id"])
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
