@@ -26,6 +26,7 @@ func TestMain(m *testing.M) {
 	testDB := config.InitTestDB()
 
 	engine := gin.Default()
+	sse := v1.NewSSEServer()
 
 	gameRepo = mysqlRepo.NewGameRepository(testDB)
 	playerRepo = mysqlRepo.NewPlayerRepository(testDB)
@@ -60,6 +61,7 @@ func TestMain(m *testing.M) {
 		&v1.GameHandlerOptions{
 			Engine:  engine,
 			Service: gameService,
+			SSE:     sse,
 		},
 	)
 
