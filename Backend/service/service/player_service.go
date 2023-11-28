@@ -89,41 +89,48 @@ func (p *PlayerService) CreatePlayerCard(c context.Context, card *repository.Pla
 	return nil
 }
 
-func (p *PlayerService) GetPlayerCardsByPlayerId(c context.Context, id int) ([]*repository.PlayerCard, error) {
-	player, err := p.PlayerRepo.GetPlayer(c, id)
-	if err != nil {
-		return nil, err
-	}
-
-	cardType := "hand"
-	cards, err := p.PlayerCardRepo.GetPlayerCardsByPlayerId(c, player.Id, player.GameId, cardType, 0)
-
-	if err != nil {
-		return nil, err
-	}
-	return cards, nil
-}
-
 func (p *PlayerService) PlayCard(c *gin.Context, playerId int, cardId int) (bool, error) {
 	player, err := p.PlayerRepo.GetPlayer(c, playerId)
 	if err != nil {
 		return false, err
 	}
 
-	cardType := "hand"
-
-	cards, err := p.PlayerCardRepo.GetPlayerCardsByPlayerId(c, player.Id, player.GameId, cardType, cardId)
+	cards, err := p.PlayerCardRepo.GetPlayerCards(c, &repository.PlayerCard{
+		PlayerId: player.Id,
+		GameId:   player.GameId,
+		Type:     "hand",
+		Id:       cardId,
+	})
 	if err != nil {
 		return false, err
 	}
-	if len(cards) == 0 {
+
+	if len(*cards) == 0 {
 		return false, nil
 	}
 
-	err = p.PlayerCardRepo.DeletePlayerCard(c, cards[0].Id)
+	err = p.PlayerCardRepo.DeletePlayerCard(c, (*cards)[0].Id)
 	if err != nil {
 		return false, err
 	}
 
 	return true, nil
+}
+
+func (p *PlayerService) GetPlayerCards(c *gin.Context, playerId int) (*[]repository.PlayerCard, error) {
+	player, err := p.PlayerRepo.GetPlayer(c, playerId)
+	if err != nil {
+		return nil, err
+	}
+
+	cards, err := p.PlayerCardRepo.GetPlayerCards(c, &repository.PlayerCard{
+		PlayerId: player.Id,
+		GameId:   player.GameId,
+		Type:     "hand",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return cards, nil
 }
