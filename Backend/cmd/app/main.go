@@ -38,6 +38,7 @@ func main() {
 	playerService := service.NewPlayerService(&service.PlayerServiceOptions{
 		PlayerRepo:     playerRepo,
 		PlayerCardRepo: playerCardRepo,
+		GameRepo:       gameRepo,
 	})
 
 	gameService := service.NewGameService(
