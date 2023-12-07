@@ -28,11 +28,14 @@ import (
 
 type IntegrationTestSuite struct {
 	suite.Suite
-	db         *gorm.DB
-	tx         *gorm.DB
-	server     *httptest.Server
-	gameRepo   repository.GameRepository
-	playerRepo repository.PlayerRepository
+	db             *gorm.DB
+	tx             *gorm.DB
+	server         *httptest.Server
+	gameRepo       repository.GameRepository
+	playerRepo     repository.PlayerRepository
+	playerCardRepo repository.PlayerCardRepository
+	gameServ       *service.GameService
+	playerServ     *service.PlayerService
 }
 
 func (suite *IntegrationTestSuite) SetupSuite() {
@@ -95,6 +98,7 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 	playerService := service.NewPlayerService(&service.PlayerServiceOptions{
 		PlayerRepo:     playerRepo,
 		PlayerCardRepo: playerCardRepo,
+		GameRepo:       gameRepo,
 	})
 
 	gameService := service.NewGameService(
@@ -113,13 +117,21 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 		},
 	)
 
+	v1.RegisterPlayerHandler(
+		&v1.PlayerHandlerOptions{
+			Engine:  engine,
+			Service: playerService,
+		})
+
 	server := httptest.NewServer(engine)
 
 	suite.db = db
 	suite.server = server
 	suite.gameRepo = gameRepo
 	suite.playerRepo = playerRepo
-
+	suite.gameServ = &gameService
+	suite.playerServ = &playerService
+	suite.playerCardRepo = playerCardRepo
 }
 
 func (suite *IntegrationTestSuite) TearDownSuite() {
@@ -150,8 +162,17 @@ func (suite *IntegrationTestSuite) responseJson(resp *http.Response) map[string]
 	return responseMap
 }
 
-func (suite *IntegrationTestSuite) requestJson(api string, jsonBody []byte) *http.Response {
-	req, err := http.NewRequest(http.MethodPost, suite.server.URL+api, bytes.NewBuffer(jsonBody))
+func (suite *IntegrationTestSuite) responseTest(resp *http.Response) interface{} {
+	var responseMap interface{}
+	err := json.NewDecoder(resp.Body).Decode(&responseMap)
+	if err != nil {
+		suite.T().Fatalf("Failed to decode JSON: %v", err)
+	}
+	return responseMap
+}
+
+func (suite *IntegrationTestSuite) requestJson(api string, jsonBody []byte, method string) *http.Response {
+	req, err := http.NewRequest(method, suite.server.URL+api, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		suite.T().Fatalf("Failed to send request: %v", err)
 	}

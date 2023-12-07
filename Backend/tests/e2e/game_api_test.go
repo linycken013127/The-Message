@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"net/http"
 )
 
 func (suite *IntegrationTestSuite) TestStartGameE2E() {
@@ -20,7 +21,7 @@ func (suite *IntegrationTestSuite) TestStartGameE2E() {
 	}
 
 	api := "/api/v1/games"
-	resp := suite.requestJson(api, jsonBody)
+	resp := suite.requestJson(api, jsonBody, http.MethodPost)
 
 	assert.Equal(suite.T(), 200, resp.StatusCode)
 
