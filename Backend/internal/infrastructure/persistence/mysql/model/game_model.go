@@ -1,0 +1,61 @@
+package model
+
+import (
+	"time"
+
+	"github.com/Game-as-a-Service/The-Message/internal/domain/entity"
+	"gorm.io/gorm"
+)
+
+// GameModel GORM 遊戲模型
+type GameModel struct {
+	gorm.Model
+	Id              int           `gorm:"primaryKey;auto_increment"`
+	Token           string
+	Status          string
+	CurrentPlayerId int
+	Players         []PlayerModel `gorm:"foreignKey:GameId"`
+	CreatedAt       time.Time     `gorm:"autoCreateTime"`
+	UpdatedAt       time.Time     `gorm:"autoCreateTime"`
+	DeletedAt       gorm.DeletedAt
+}
+
+// TableName 指定表名
+func (GameModel) TableName() string {
+	return "games"
+}
+
+// ToEntity 轉換為領域實體
+func (m *GameModel) ToEntity() *entity.Game {
+	game := &entity.Game{
+		ID:              m.Id,
+		Token:           m.Token,
+		Status:          m.Status,
+		CurrentPlayerID: m.CurrentPlayerId,
+		CreatedAt:       m.CreatedAt,
+		UpdatedAt:       m.UpdatedAt,
+		Players:         make([]entity.Player, 0, len(m.Players)),
+	}
+
+	for _, pm := range m.Players {
+		player := pm.ToEntity()
+		player.Game = game
+		game.Players = append(game.Players, *player)
+	}
+
+	return game
+}
+
+// GameModelFromEntity 從領域實體轉換
+func GameModelFromEntity(e *entity.Game) *GameModel {
+	model := &GameModel{
+		Id:              e.ID,
+		Token:           e.Token,
+		Status:          e.Status,
+		CurrentPlayerId: e.CurrentPlayerID,
+		CreatedAt:       e.CreatedAt,
+		UpdatedAt:       e.UpdatedAt,
+	}
+
+	return model
+}

@@ -2,10 +2,11 @@ package main
 
 import (
 	_ "github.com/Game-as-a-Service/The-Message/cmd/app/docs"
-	"github.com/Game-as-a-Service/The-Message/config"
-	"github.com/Game-as-a-Service/The-Message/service/delivery/http/v1"
-	mysqlRepo "github.com/Game-as-a-Service/The-Message/service/repository/mysql"
-	"github.com/Game-as-a-Service/The-Message/service/service"
+	"github.com/Game-as-a-Service/The-Message/internal/adapter/http/handler"
+	"github.com/Game-as-a-Service/The-Message/internal/adapter/sse"
+	"github.com/Game-as-a-Service/The-Message/internal/infrastructure/config"
+	"github.com/Game-as-a-Service/The-Message/internal/infrastructure/persistence/mysql"
+	"github.com/Game-as-a-Service/The-Message/internal/usecase"
 	"github.com/gin-gonic/gin"
 	_ "github.com/joho/godotenv/autoload"
 	swaggerFiles "github.com/swaggo/files"
@@ -16,78 +17,82 @@ import (
 // @description	This is an online version of the "The Message" board game backend API
 // @host			127.0.0.1:8080
 func main() {
+	// 1. 初始化資料庫連線（Infrastructure Layer）
 	db := config.NewDatabase()
 
+	// 2. 初始化 Gin Engine 與 SSE（Adapter Layer）
 	engine := gin.Default()
-	sse := http.NewSSEServer()
+	sseServer := sse.NewSSEServer()
 
-	gameRepo := mysqlRepo.NewGameRepository(db)
-	playerRepo := mysqlRepo.NewPlayerRepository(db)
-	cardRepo := mysqlRepo.NewCardRepository(db)
-	deckRepo := mysqlRepo.NewDeckRepository(db)
-	playerCardRepo := mysqlRepo.NewPlayerCardRepository(db)
-	gameProgressRepo := mysqlRepo.NewGameProgressRepository(db)
+	// 3. 初始化 Repository（Infrastructure Layer）
+	// Repository 實作依賴於 GORM，但介面定義於 Domain Layer
+	gameRepo := mysql.NewGameRepository(db)
+	playerRepo := mysql.NewPlayerRepository(db)
+	cardRepo := mysql.NewCardRepository(db)
+	deckRepo := mysql.NewDeckRepository(db)
+	playerCardRepo := mysql.NewPlayerCardRepository(db)
+	gameProgressRepo := mysql.NewGameProgressRepository(db)
 
-	cardService := service.NewCardService(&service.CardServiceOptions{
+	// 4. 初始化 Use Cases（Use Case Layer）
+	// Use Case 只依賴於 Domain Layer 的 Repository 介面
+	cardUseCase := usecase.NewCardUseCase(&usecase.CardUseCaseOptions{
 		CardRepo:       cardRepo,
 		PlayerRepo:     playerRepo,
 		PlayerCardRepo: playerCardRepo,
 		GameRepo:       gameRepo,
 	})
 
-	deckService := service.NewDeckService(&service.DeckServiceOptions{
+	deckUseCase := usecase.NewDeckUseCase(&usecase.DeckUseCaseOptions{
 		DeckRepo:    deckRepo,
-		CardService: cardService,
+		CardUseCase: cardUseCase,
 	})
 
-	playerService := service.NewPlayerService(&service.PlayerServiceOptions{
+	playerUseCase := usecase.NewPlayerUseCase(&usecase.PlayerUseCaseOptions{
 		PlayerRepo:       playerRepo,
 		PlayerCardRepo:   playerCardRepo,
 		GameRepo:         gameRepo,
 		GameProgressRepo: gameProgressRepo,
 	})
 
-	gameService := service.NewGameService(
-		&service.GameServiceOptions{
-			GameRepo:      gameRepo,
-			PlayerService: playerService,
-			CardService:   cardService,
-			DeckService:   deckService,
-		},
-	)
-	playerService.GameServ = &gameService
+	gameUseCase := usecase.NewGameUseCase(&usecase.GameUseCaseOptions{
+		GameRepo:      gameRepo,
+		PlayerUseCase: playerUseCase,
+		CardUseCase:   cardUseCase,
+		DeckUseCase:   deckUseCase,
+	})
 
-	http.RegisterGameHandler(
-		&http.GameHandlerOptions{
-			Engine:  engine,
-			Service: gameService,
-			SSE:     sse,
-		},
-	)
+	// 處理循環依賴：PlayerUseCase 需要 GameUseCase 來執行 NextPlayer
+	playerUseCase.SetGameUseCase(gameUseCase)
 
-	// Register the heartbeat handler
-	http.RegisterHeartbeatHandler(
-		&http.HeartbeatHandler{
-			Engine: engine,
-		})
+	// 5. 註冊 HTTP Handlers（Adapter Layer）
+	// Handler 只依賴於 Use Case 介面，不直接操作 Repository
+	handler.RegisterGameHandler(&handler.GameHandlerOptions{
+		Engine:        engine,
+		GameUseCase:   gameUseCase,
+		PlayerUseCase: playerUseCase,
+		SSE:           sseServer,
+	})
 
-	http.RegisterCardHandler(
-		&http.CardHandlerOptions{
-			Engine:  engine,
-			Service: cardService,
-		},
-	)
+	handler.RegisterHeartbeatHandler(&handler.HeartbeatHandler{
+		Engine: engine,
+	})
 
-	http.RegisterPlayerHandler(
-		&http.PlayerHandlerOptions{
-			Engine:      engine,
-			Service:     playerService,
-			GameService: gameService,
-			SSE:         sse,
-		},
-	)
+	handler.RegisterCardHandler(&handler.CardHandlerOptions{
+		Engine:      engine,
+		CardUseCase: cardUseCase,
+	})
+
+	handler.RegisterPlayerHandler(&handler.PlayerHandlerOptions{
+		Engine:        engine,
+		PlayerUseCase: playerUseCase,
+		GameUseCase:   gameUseCase,
+		SSE:           sseServer,
+	})
+
+	// 6. Swagger 文件
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	// 7. 啟動伺服器
 	err := engine.Run(":8080")
 	if err != nil {
 		return
