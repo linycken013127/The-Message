@@ -103,14 +103,49 @@ func (uc *playerUseCase) InitPlayers(ctx context.Context, game *entity.Game, req
 }
 
 // InitIdentityCards 初始化身份卡
+// 根據玩家數量分配身份：
+// 3人: 潛伏1, 軍情1, 打醬油1
+// 5人: 潛伏2, 軍情2, 打醬油1
+// 6人: 潛伏2, 軍情2, 打醬油2
+// 7人: 潛伏2, 軍情2, 打醬油3
+// 8人: 潛伏3, 軍情3, 打醬油2
+// 9人: 潛伏3, 軍情3, 打醬油3
 func (uc *playerUseCase) InitIdentityCards(playersCount int) []string {
-	identityCards := make([]string, playersCount)
+	identityCards := make([]string, 0, playersCount)
 
-	if playersCount == 3 {
-		identityCards[0] = entity.IdentityUndercoverFront
-		identityCards[1] = entity.IdentityMilitaryAgency
-		identityCards[2] = entity.IdentityBystander
+	var undercover, military, bystander int
+
+	switch playersCount {
+	case 3:
+		undercover, military, bystander = 1, 1, 1
+	case 5:
+		undercover, military, bystander = 2, 2, 1
+	case 6:
+		undercover, military, bystander = 2, 2, 2
+	case 7:
+		undercover, military, bystander = 2, 2, 3
+	case 8:
+		undercover, military, bystander = 3, 3, 2
+	case 9:
+		undercover, military, bystander = 3, 3, 3
+	default:
+		// 不支援的人數，返回空陣列
+		return identityCards
 	}
+
+	// 加入潛伏戰線
+	for i := 0; i < undercover; i++ {
+		identityCards = append(identityCards, entity.IdentityUndercoverFront)
+	}
+	// 加入軍情處
+	for i := 0; i < military; i++ {
+		identityCards = append(identityCards, entity.IdentityMilitaryAgency)
+	}
+	// 加入打醬油
+	for i := 0; i < bystander; i++ {
+		identityCards = append(identityCards, entity.IdentityBystander)
+	}
+
 	identityCards = ShuffleIdentityCards(identityCards)
 	return identityCards
 }

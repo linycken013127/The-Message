@@ -133,6 +133,8 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 		GameRepo:       gameRepo,
 		GamePlayerRepo: gamePlayerRepo,
 		AccountRepo:    accountRepo,
+		PlayerUseCase:  playerUseCase,
+		GameUseCase:    gameUseCase,
 	})
 
 	// 註冊 HTTP Handlers
