@@ -32,6 +32,7 @@ func main() {
 	deckRepo := mysql.NewDeckRepository(db)
 	playerCardRepo := mysql.NewPlayerCardRepository(db)
 	gameProgressRepo := mysql.NewGameProgressRepository(db)
+	accountRepo := mysql.NewAccountRepository(db)
 
 	// 4. 初始化 Use Cases（Use Case Layer）
 	// Use Case 只依賴於 Domain Layer 的 Repository 介面
@@ -64,6 +65,10 @@ func main() {
 	// 處理循環依賴：PlayerUseCase 需要 GameUseCase 來執行 NextPlayer
 	playerUseCase.SetGameUseCase(gameUseCase)
 
+	accountUseCase := usecase.NewAccountUseCase(&usecase.AccountUseCaseOptions{
+		AccountRepo: accountRepo,
+	})
+
 	// 5. 註冊 HTTP Handlers（Adapter Layer）
 	// Handler 只依賴於 Use Case 介面，不直接操作 Repository
 	handler.RegisterGameHandler(&handler.GameHandlerOptions{
@@ -87,6 +92,11 @@ func main() {
 		PlayerUseCase: playerUseCase,
 		GameUseCase:   gameUseCase,
 		SSE:           sseServer,
+	})
+
+	handler.RegisterAccountHandler(&handler.AccountHandlerOptions{
+		Engine:         engine,
+		AccountUseCase: accountUseCase,
 	})
 
 	// 6. Swagger 文件
