@@ -21,7 +21,7 @@ func (suite *IntegrationTestSuite) TestStartGameE2E() {
 		suite.T().Fatalf("Failed to marshal JSON: %v", err)
 	}
 
-	api := "/api/v1/games"
+	api := "/api/v1/games/start-legacy"
 	resp := suite.requestJson(api, jsonBody, http.MethodPost)
 
 	assert.Equal(suite.T(), 200, resp.StatusCode)
