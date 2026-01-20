@@ -29,16 +29,18 @@ import (
 // CleanArchTestSuite Clean Architecture 整合測試套件
 type CleanArchTestSuite struct {
 	suite.Suite
-	db             *gorm.DB
-	tx             *gorm.DB
-	server         *httptest.Server
-	gameRepo       repository.GameRepository
-	playerRepo     repository.PlayerRepository
-	playerCardRepo repository.PlayerCardRepository
-	accountRepo    repository.AccountRepository
-	gameUseCase    usecase.GameUseCase
-	playerUseCase  usecase.PlayerUseCase
-	accountUseCase usecase.AccountUseCase
+	db              *gorm.DB
+	tx              *gorm.DB
+	server          *httptest.Server
+	gameRepo        repository.GameRepository
+	playerRepo      repository.PlayerRepository
+	playerCardRepo  repository.PlayerCardRepository
+	accountRepo     repository.AccountRepository
+	gamePlayerRepo  repository.GamePlayerRepository
+	gameUseCase     usecase.GameUseCase
+	playerUseCase   usecase.PlayerUseCase
+	accountUseCase  usecase.AccountUseCase
+	gameRoomUseCase usecase.GameRoomUseCase
 }
 
 func (suite *CleanArchTestSuite) SetupSuite() {
@@ -91,6 +93,7 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 	playerCardRepo := mysql.NewPlayerCardRepository(db)
 	gameProgressRepo := mysql.NewGameProgressRepository(db)
 	accountRepo := mysql.NewAccountRepository(db)
+	gamePlayerRepo := mysql.NewGamePlayerRepository(db)
 
 	// 初始化 Use Cases（Use Case Layer）
 	cardUseCase := usecase.NewCardUseCase(&usecase.CardUseCaseOptions{
@@ -126,6 +129,12 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 		AccountRepo: accountRepo,
 	})
 
+	gameRoomUseCase := usecase.NewGameRoomUseCase(&usecase.GameRoomUseCaseOptions{
+		GameRepo:       gameRepo,
+		GamePlayerRepo: gamePlayerRepo,
+		AccountRepo:    accountRepo,
+	})
+
 	// 註冊 HTTP Handlers
 	handler.RegisterGameHandler(&handler.GameHandlerOptions{
 		Engine:        engine,
@@ -151,6 +160,11 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 		AccountUseCase: accountUseCase,
 	})
 
+	handler.RegisterGameRoomHandler(&handler.GameRoomHandlerOptions{
+		Engine:          engine,
+		GameRoomUseCase: gameRoomUseCase,
+	})
+
 	server := httptest.NewServer(engine)
 
 	suite.db = db
@@ -162,6 +176,8 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 	suite.playerCardRepo = playerCardRepo
 	suite.accountRepo = accountRepo
 	suite.accountUseCase = accountUseCase
+	suite.gamePlayerRepo = gamePlayerRepo
+	suite.gameRoomUseCase = gameRoomUseCase
 }
 
 func (suite *CleanArchTestSuite) TearDownSuite() {

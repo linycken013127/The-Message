@@ -25,3 +25,14 @@ type AcceptCardRequest struct {
 type RegisterPlayerRequest struct {
 	PlayerName string `json:"playerName" binding:"required"`
 }
+
+// CreateGameRoomRequest 建立遊戲房請求
+type CreateGameRoomRequest struct {
+	MaxPlayers int `json:"maxPlayers"`
+}
+
+// JoinGameRoomRequest 加入遊戲房請求
+type JoinGameRoomRequest struct{}
+
+// StartGameRequest 開始遊戲請求
+type StartGameRequest struct{}

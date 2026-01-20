@@ -37,7 +37,7 @@ func RegisterGameHandler(opts *GameHandlerOptions) {
 		SSE:           opts.SSE,
 	}
 
-	opts.Engine.POST("/api/v1/games", handler.StartGame)
+	opts.Engine.POST("/api/v1/games/start-legacy", handler.StartGame)
 	opts.Engine.GET("/api/v1/games/:gameId/events", sse.HeadersMiddleware(), opts.SSE.ServeHTTP(), handler.GameEvent)
 }
 
@@ -51,7 +51,7 @@ func RegisterGameHandler(opts *GameHandlerOptions) {
 // @Success 200 {object} response.CreateGameResponse
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
-// @Router /api/v1/games [post]
+// @Router /api/v1/games/start-legacy [post]
 func (h *GameHandler) StartGame(c *gin.Context) {
 	var req request.CreateGameRequest
 

@@ -29,6 +29,26 @@ type RegisterPlayerResponse struct {
 	PlayerName string `json:"playerName"`
 }
 
+// CreateGameRoomResponse 建立遊戲房回應
+type CreateGameRoomResponse struct {
+	GameID       int    `json:"gameId"`
+	Status       string `json:"status"`
+	HostPlayerID int    `json:"hostPlayerId"`
+}
+
+// JoinGameRoomResponse 加入遊戲房回應
+type JoinGameRoomResponse struct {
+	GameID   int    `json:"gameId"`
+	PlayerID int    `json:"playerId"`
+	Message  string `json:"message"`
+}
+
+// StartGameResponse 開始遊戲回應
+type StartGameResponse struct {
+	GameID int    `json:"gameId"`
+	Status string `json:"status"`
+}
+
 // Success 成功回應
 func Success(c *gin.Context, code int, data interface{}) {
 	c.JSON(code, data)
