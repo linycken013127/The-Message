@@ -163,6 +163,7 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 	handler.RegisterGameRoomHandler(&handler.GameRoomHandlerOptions{
 		Engine:          engine,
 		GameRoomUseCase: gameRoomUseCase,
+		AccountRepo:     accountRepo,
 	})
 
 	server := httptest.NewServer(engine)

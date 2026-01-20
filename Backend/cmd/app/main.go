@@ -109,6 +109,7 @@ func main() {
 	handler.RegisterGameRoomHandler(&handler.GameRoomHandlerOptions{
 		Engine:          engine,
 		GameRoomUseCase: gameRoomUseCase,
+		AccountRepo:     accountRepo,
 	})
 
 	// 6. Swagger 文件
