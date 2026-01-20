@@ -20,3 +20,8 @@ type PlayCardRequest struct {
 type AcceptCardRequest struct {
 	Accept bool `json:"accept"`
 }
+
+// RegisterPlayerRequest 註冊玩家請求
+type RegisterPlayerRequest struct {
+	PlayerName string `json:"playerName" binding:"required"`
+}

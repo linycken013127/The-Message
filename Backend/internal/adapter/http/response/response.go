@@ -23,6 +23,12 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
+// RegisterPlayerResponse 註冊玩家回應
+type RegisterPlayerResponse struct {
+	PlayerID   int    `json:"playerId"`
+	PlayerName string `json:"playerName"`
+}
+
 // Success 成功回應
 func Success(c *gin.Context, code int, data interface{}) {
 	c.JSON(code, data)

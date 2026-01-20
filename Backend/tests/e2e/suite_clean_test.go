@@ -35,8 +35,10 @@ type CleanArchTestSuite struct {
 	gameRepo       repository.GameRepository
 	playerRepo     repository.PlayerRepository
 	playerCardRepo repository.PlayerCardRepository
+	accountRepo    repository.AccountRepository
 	gameUseCase    usecase.GameUseCase
 	playerUseCase  usecase.PlayerUseCase
+	accountUseCase usecase.AccountUseCase
 }
 
 func (suite *CleanArchTestSuite) SetupSuite() {
@@ -88,6 +90,7 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 	deckRepo := mysql.NewDeckRepository(db)
 	playerCardRepo := mysql.NewPlayerCardRepository(db)
 	gameProgressRepo := mysql.NewGameProgressRepository(db)
+	accountRepo := mysql.NewAccountRepository(db)
 
 	// 初始化 Use Cases（Use Case Layer）
 	cardUseCase := usecase.NewCardUseCase(&usecase.CardUseCaseOptions{
@@ -119,6 +122,10 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 	// 處理循環依賴
 	playerUseCase.SetGameUseCase(gameUseCase)
 
+	accountUseCase := usecase.NewAccountUseCase(&usecase.AccountUseCaseOptions{
+		AccountRepo: accountRepo,
+	})
+
 	// 註冊 HTTP Handlers
 	handler.RegisterGameHandler(&handler.GameHandlerOptions{
 		Engine:        engine,
@@ -139,6 +146,11 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 		SSE:           sseServer,
 	})
 
+	handler.RegisterAccountHandler(&handler.AccountHandlerOptions{
+		Engine:         engine,
+		AccountUseCase: accountUseCase,
+	})
+
 	server := httptest.NewServer(engine)
 
 	suite.db = db
@@ -148,6 +160,8 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 	suite.gameUseCase = gameUseCase
 	suite.playerUseCase = playerUseCase
 	suite.playerCardRepo = playerCardRepo
+	suite.accountRepo = accountRepo
+	suite.accountUseCase = accountUseCase
 }
 
 func (suite *CleanArchTestSuite) TearDownSuite() {
