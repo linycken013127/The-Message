@@ -74,6 +74,8 @@ func main() {
 		GameRepo:       gameRepo,
 		GamePlayerRepo: gamePlayerRepo,
 		AccountRepo:    accountRepo,
+		PlayerUseCase:  playerUseCase,
+		GameUseCase:    gameUseCase,
 	})
 
 	// 5. 註冊 HTTP Handlers（Adapter Layer）

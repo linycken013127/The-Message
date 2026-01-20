@@ -75,6 +75,10 @@ func (g *Game) CanStart(accountID int) error {
 	if g.CurrentPlayers < GameMinPlayers {
 		return ErrNotEnoughPlayers
 	}
+	// 4 人遊戲不支援（身份配置不平衡）
+	if g.CurrentPlayers == 4 {
+		return ErrPlayerCountNotSupported
+	}
 	if g.Status != GameRoomStatusWaiting {
 		return ErrGameAlreadyStarted
 	}
@@ -131,10 +135,11 @@ const (
 
 // 遊戲房相關錯誤
 var (
-	ErrGameNotFound       = errors.New("遊戲房不存在")
-	ErrGameAlreadyStarted = errors.New("遊戲已開始")
-	ErrGameRoomFull       = errors.New("遊戲房已滿")
-	ErrNotGameHost        = errors.New("只有房主可以開始遊戲")
-	ErrNotEnoughPlayers   = errors.New("人數不足，至少需要 3 人")
-	ErrAlreadyInGame      = errors.New("你已經在這個遊戲房中")
+	ErrGameNotFound            = errors.New("遊戲房不存在")
+	ErrGameAlreadyStarted      = errors.New("遊戲已開始")
+	ErrGameRoomFull            = errors.New("遊戲房已滿")
+	ErrNotGameHost             = errors.New("只有房主可以開始遊戲")
+	ErrNotEnoughPlayers        = errors.New("人數不足，至少需要 3 人")
+	ErrAlreadyInGame           = errors.New("你已經在這個遊戲房中")
+	ErrPlayerCountNotSupported = errors.New("不支援此人數配置，請選擇 3、5-9 人")
 )
