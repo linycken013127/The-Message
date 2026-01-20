@@ -4,8 +4,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Game-as-a-Service/The-Message/internal/adapter/http/middleware"
 	"github.com/Game-as-a-Service/The-Message/internal/adapter/http/request"
 	"github.com/Game-as-a-Service/The-Message/internal/adapter/http/response"
+	"github.com/Game-as-a-Service/The-Message/internal/domain/repository"
 	"github.com/Game-as-a-Service/The-Message/internal/usecase"
 	"github.com/gin-gonic/gin"
 )
@@ -19,6 +21,7 @@ type GameRoomHandler struct {
 type GameRoomHandlerOptions struct {
 	Engine          *gin.Engine
 	GameRoomUseCase usecase.GameRoomUseCase
+	AccountRepo     repository.AccountRepository
 }
 
 // RegisterGameRoomHandler 註冊遊戲房處理器
@@ -29,41 +32,12 @@ func RegisterGameRoomHandler(opts *GameRoomHandlerOptions) {
 
 	// 需要認證的路由
 	authGroup := opts.Engine.Group("/api/v1")
-	authGroup.Use(AuthMiddleware())
+	authGroup.Use(middleware.AuthMiddleware(opts.AccountRepo))
 	{
 		authGroup.POST("/games", handler.CreateGameRoom)
 		authGroup.POST("/games/:gameId/join", handler.JoinGameRoom)
 		authGroup.POST("/games/:gameId/start", handler.StartGame)
 	}
-}
-
-// AuthMiddleware 簡易認證中介軟體
-// 從 Header 讀取 X-Account-ID
-func AuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		accountIDStr := c.GetHeader("X-Account-ID")
-		if accountIDStr == "" {
-			response.Error(c, http.StatusUnauthorized, "未提供認證資訊")
-			c.Abort()
-			return
-		}
-
-		accountID, err := strconv.Atoi(accountIDStr)
-		if err != nil {
-			response.Error(c, http.StatusUnauthorized, "無效的認證資訊")
-			c.Abort()
-			return
-		}
-
-		c.Set("accountID", accountID)
-		c.Next()
-	}
-}
-
-// getAccountID 從 context 取得帳號 ID
-func getAccountID(c *gin.Context) int {
-	accountID, _ := c.Get("accountID")
-	return accountID.(int)
 }
 
 // CreateGameRoom godoc
@@ -79,7 +53,7 @@ func getAccountID(c *gin.Context) int {
 // @Failure 401 {object} response.ErrorResponse
 // @Router /api/v1/games [post]
 func (h *GameRoomHandler) CreateGameRoom(c *gin.Context) {
-	accountID := getAccountID(c)
+	accountID := middleware.GetAccountID(c)
 
 	var req request.CreateGameRoomRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -113,7 +87,7 @@ func (h *GameRoomHandler) CreateGameRoom(c *gin.Context) {
 // @Failure 401 {object} response.ErrorResponse
 // @Router /api/v1/games/{gameId}/join [post]
 func (h *GameRoomHandler) JoinGameRoom(c *gin.Context) {
-	accountID := getAccountID(c)
+	accountID := middleware.GetAccountID(c)
 	gameID, err := strconv.Atoi(c.Param("gameId"))
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "無效的遊戲 ID")
@@ -146,7 +120,7 @@ func (h *GameRoomHandler) JoinGameRoom(c *gin.Context) {
 // @Failure 401 {object} response.ErrorResponse
 // @Router /api/v1/games/{gameId}/start [post]
 func (h *GameRoomHandler) StartGame(c *gin.Context) {
-	accountID := getAccountID(c)
+	accountID := middleware.GetAccountID(c)
 	gameID, err := strconv.Atoi(c.Param("gameId"))
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "無效的遊戲 ID")
