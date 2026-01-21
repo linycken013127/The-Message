@@ -13,15 +13,33 @@ type IntelligencePhaseUseCase interface {
 	PassIntelligenceCard(ctx context.Context, gameID int, playerID int, cardID int, targetPlayerID int) (*entity.IntelligenceTransfer, error)
 	// GetActiveTransfer 取得正在傳遞的情報
 	GetActiveTransfer(ctx context.Context, gameID int) (*entity.IntelligenceTransfer, error)
+	// AcceptIntelligence 接收情報
+	AcceptIntelligence(ctx context.Context, gameID int, playerID int) (*AcceptIntelligenceResult, error)
+	// RejectIntelligence 拒絕情報
+	RejectIntelligence(ctx context.Context, gameID int, playerID int) (*RejectIntelligenceResult, error)
+}
+
+// AcceptIntelligenceResult 接收情報結果
+type AcceptIntelligenceResult struct {
+	PlayerID int
+	CardID   int
+}
+
+// RejectIntelligenceResult 拒絕情報結果
+type RejectIntelligenceResult struct {
+	Transfer       *entity.IntelligenceTransfer
+	AutoAccepted   bool   // 是否自動接收（回到發送者或直達被拒絕）
+	AutoAcceptedBy int    // 自動接收的玩家 ID
+	Message        string // 回傳訊息
 }
 
 // intelligencePhaseUseCase 情報階段用例實作
 type intelligencePhaseUseCase struct {
-	gameRepo                   repository.GameRepository
-	playerRepo                 repository.PlayerRepository
-	playerCardRepo             repository.PlayerCardRepository
-	cardRepo                   repository.CardRepository
-	intelligenceTransferRepo   repository.IntelligenceTransferRepository
+	gameRepo                 repository.GameRepository
+	playerRepo               repository.PlayerRepository
+	playerCardRepo           repository.PlayerCardRepository
+	cardRepo                 repository.CardRepository
+	intelligenceTransferRepo repository.IntelligenceTransferRepository
 }
 
 // IntelligencePhaseUseCaseOptions 情報階段用例選項
@@ -188,4 +206,188 @@ func (uc *intelligencePhaseUseCase) getNextAlivePlayerID(game *entity.Game, curr
 
 	// 找不到（不應該發生）
 	return currentPlayerID
+}
+
+// AcceptIntelligence 接收情報
+func (uc *intelligencePhaseUseCase) AcceptIntelligence(ctx context.Context, gameID int, playerID int) (*AcceptIntelligenceResult, error) {
+	// 取得正在傳遞的情報
+	transfer, err := uc.intelligenceTransferRepo.GetActiveTransferByGameID(ctx, gameID)
+	if err != nil {
+		return nil, err
+	}
+	if transfer == nil {
+		return nil, entity.ErrNoIntelligenceInTransit
+	}
+
+	// 檢查是否是目標玩家
+	if transfer.CurrentTargetPlayerID != playerID {
+		return nil, entity.ErrNotIntelligenceTarget
+	}
+
+	// 完成情報傳遞
+	return uc.completeIntelligenceTransfer(ctx, transfer, playerID)
+}
+
+// RejectIntelligence 拒絕情報
+func (uc *intelligencePhaseUseCase) RejectIntelligence(ctx context.Context, gameID int, playerID int) (*RejectIntelligenceResult, error) {
+	// 取得遊戲（含玩家）
+	game, err := uc.gameRepo.GetGameWithPlayers(ctx, gameID)
+	if err != nil {
+		return nil, entity.ErrGameNotFound
+	}
+
+	// 取得正在傳遞的情報
+	transfer, err := uc.intelligenceTransferRepo.GetActiveTransferByGameID(ctx, gameID)
+	if err != nil {
+		return nil, err
+	}
+	if transfer == nil {
+		return nil, entity.ErrNoIntelligenceInTransit
+	}
+
+	// 檢查是否是目標玩家
+	if transfer.CurrentTargetPlayerID != playerID {
+		return nil, entity.ErrNotIntelligenceTarget
+	}
+
+	// 取得卡片資訊以判斷情報類型
+	card, err := uc.cardRepo.GetCardById(ctx, transfer.CardID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 判斷情報類型處理邏輯
+	switch card.IntelligenceType {
+	case entity.IntelligenceTypeDirect:
+		// 直達情報被拒絕，自動歸屬發送者
+		_, err := uc.completeIntelligenceTransfer(ctx, transfer, transfer.SenderPlayerID)
+		if err != nil {
+			return nil, err
+		}
+		return &RejectIntelligenceResult{
+			Transfer:       transfer,
+			AutoAccepted:   true,
+			AutoAcceptedBy: transfer.SenderPlayerID,
+			Message:        "情報已被發送者自動接收",
+		}, nil
+
+	case entity.IntelligenceTypeSecretTelegram, entity.IntelligenceTypeDocument:
+		// 密電或文件，傳給下一位玩家
+		nextTargetID := uc.getNextAlivePlayerID(game, playerID)
+
+		// 檢查是否回到發送者
+		if nextTargetID == transfer.SenderPlayerID {
+			// 回到發送者，自動接收
+			_, err := uc.completeIntelligenceTransfer(ctx, transfer, transfer.SenderPlayerID)
+			if err != nil {
+				return nil, err
+			}
+			return &RejectIntelligenceResult{
+				Transfer:       transfer,
+				AutoAccepted:   true,
+				AutoAcceptedBy: transfer.SenderPlayerID,
+				Message:        "情報已被發送者自動接收",
+			}, nil
+		}
+
+		// 更新目標玩家
+		transfer.UpdateTarget(nextTargetID)
+		err = uc.intelligenceTransferRepo.UpdateIntelligenceTransfer(ctx, transfer)
+		if err != nil {
+			return nil, err
+		}
+
+		// 更新當前玩家為新目標
+		game.CurrentPlayerID = nextTargetID
+		err = uc.gameRepo.UpdateGame(ctx, game)
+		if err != nil {
+			return nil, err
+		}
+
+		// 附加卡片資訊
+		transfer.Card = card
+
+		return &RejectIntelligenceResult{
+			Transfer:     transfer,
+			AutoAccepted: false,
+			Message:      "情報已拒絕",
+		}, nil
+
+	default:
+		// 未知類型，預設為密電處理
+		nextTargetID := uc.getNextAlivePlayerID(game, playerID)
+		if nextTargetID == transfer.SenderPlayerID {
+			_, err := uc.completeIntelligenceTransfer(ctx, transfer, transfer.SenderPlayerID)
+			if err != nil {
+				return nil, err
+			}
+			return &RejectIntelligenceResult{
+				Transfer:       transfer,
+				AutoAccepted:   true,
+				AutoAcceptedBy: transfer.SenderPlayerID,
+				Message:        "情報已被發送者自動接收",
+			}, nil
+		}
+
+		transfer.UpdateTarget(nextTargetID)
+		err = uc.intelligenceTransferRepo.UpdateIntelligenceTransfer(ctx, transfer)
+		if err != nil {
+			return nil, err
+		}
+
+		game.CurrentPlayerID = nextTargetID
+		err = uc.gameRepo.UpdateGame(ctx, game)
+		if err != nil {
+			return nil, err
+		}
+
+		transfer.Card = card
+		return &RejectIntelligenceResult{
+			Transfer:     transfer,
+			AutoAccepted: false,
+			Message:      "情報已拒絕",
+		}, nil
+	}
+}
+
+// completeIntelligenceTransfer 完成情報傳遞
+func (uc *intelligencePhaseUseCase) completeIntelligenceTransfer(ctx context.Context, transfer *entity.IntelligenceTransfer, receiverID int) (*AcceptIntelligenceResult, error) {
+	// 取得遊戲
+	game, err := uc.gameRepo.GetGameWithPlayers(ctx, transfer.GameID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 將卡片加入接收者的情報區
+	intelligenceCard := entity.NewPlayerCard(receiverID, transfer.GameID, transfer.CardID, entity.PlayerCardTypeIntelligence)
+	_, err = uc.playerCardRepo.CreatePlayerCard(ctx, intelligenceCard)
+	if err != nil {
+		return nil, err
+	}
+
+	// 標記情報傳遞為已完成
+	transfer.Complete()
+	err = uc.intelligenceTransferRepo.UpdateIntelligenceTransfer(ctx, transfer)
+	if err != nil {
+		return nil, err
+	}
+
+	// 刪除情報傳遞記錄（或保留作為歷史記錄）
+	err = uc.intelligenceTransferRepo.DeleteIntelligenceTransfer(ctx, transfer.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 遊戲進入下一回合（行動階段）
+	game.Phase = entity.GamePhaseAction
+	game.CurrentPlayerID = receiverID
+	err = uc.gameRepo.UpdateGame(ctx, game)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AcceptIntelligenceResult{
+		PlayerID: receiverID,
+		CardID:   transfer.CardID,
+	}, nil
 }

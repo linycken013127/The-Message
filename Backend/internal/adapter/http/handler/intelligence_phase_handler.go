@@ -28,6 +28,8 @@ func RegisterIntelligencePhaseHandler(opts *IntelligencePhaseHandlerOptions) {
 
 	opts.Engine.POST("/api/v1/games/:gameId/intelligence/pass-card", handler.PassIntelligenceCard)
 	opts.Engine.GET("/api/v1/games/:gameId/intelligence/active", handler.GetActiveTransfer)
+	opts.Engine.POST("/api/v1/games/:gameId/intelligence/accept", handler.AcceptIntelligence)
+	opts.Engine.POST("/api/v1/games/:gameId/intelligence/reject", handler.RejectIntelligence)
 }
 
 // PassIntelligenceCardRequest 傳遞情報牌請求
@@ -143,6 +145,122 @@ func (h *IntelligencePhaseHandler) GetActiveTransfer(c *gin.Context) {
 			"id":    transfer.Card.ID,
 			"name":  transfer.Card.Name,
 			"color": transfer.Card.Color,
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// AcceptIntelligenceRequest 接收情報請求
+type AcceptIntelligenceRequest struct {
+	PlayerID int `json:"player_id" binding:"required"`
+}
+
+// AcceptIntelligence godoc
+// @Summary Accept intelligence
+// @Description Current target player accepts the intelligence card
+// @Tags intelligence-phase
+// @Accept json
+// @Produce json
+// @Param gameId path int true "Game ID"
+// @Param request body AcceptIntelligenceRequest true "Accept intelligence request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/games/{gameId}/intelligence/accept [post]
+func (h *IntelligencePhaseHandler) AcceptIntelligence(c *gin.Context) {
+	gameID, err := strconv.Atoi(c.Param("gameId"))
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "無效的遊戲 ID")
+		return
+	}
+
+	var req AcceptIntelligenceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "請求格式錯誤")
+		return
+	}
+
+	result, err := h.intelligencePhaseUseCase.AcceptIntelligence(c, gameID, req.PlayerID)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":   true,
+		"message":   "情報已接收",
+		"player_id": result.PlayerID,
+		"card_id":   result.CardID,
+	})
+}
+
+// RejectIntelligenceRequest 拒絕情報請求
+type RejectIntelligenceRequest struct {
+	PlayerID int `json:"player_id" binding:"required"`
+}
+
+// RejectIntelligence godoc
+// @Summary Reject intelligence
+// @Description Current target player rejects the intelligence card
+// @Tags intelligence-phase
+// @Accept json
+// @Produce json
+// @Param gameId path int true "Game ID"
+// @Param request body RejectIntelligenceRequest true "Reject intelligence request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/games/{gameId}/intelligence/reject [post]
+func (h *IntelligencePhaseHandler) RejectIntelligence(c *gin.Context) {
+	gameID, err := strconv.Atoi(c.Param("gameId"))
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "無效的遊戲 ID")
+		return
+	}
+
+	var req RejectIntelligenceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "請求格式錯誤")
+		return
+	}
+
+	result, err := h.intelligencePhaseUseCase.RejectIntelligence(c, gameID, req.PlayerID)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 根據是否自動接收回傳不同訊息
+	if result.AutoAccepted {
+		c.JSON(http.StatusOK, gin.H{
+			"success":          true,
+			"message":          result.Message,
+			"auto_accepted":    true,
+			"auto_accepted_by": result.AutoAcceptedBy,
+		})
+		return
+	}
+
+	// 情報傳給下一位玩家
+	resp := gin.H{
+		"success": true,
+		"message": result.Message,
+		"transfer": gin.H{
+			"id":                       result.Transfer.ID,
+			"game_id":                  result.Transfer.GameID,
+			"card_id":                  result.Transfer.CardID,
+			"sender_player_id":         result.Transfer.SenderPlayerID,
+			"current_target_player_id": result.Transfer.CurrentTargetPlayerID,
+			"face_up":                  result.Transfer.FaceUp,
+			"status":                   result.Transfer.Status,
+		},
+	}
+
+	// 如果明牌，則顯示卡片資訊
+	if result.Transfer.FaceUp && result.Transfer.Card != nil {
+		resp["card"] = gin.H{
+			"id":    result.Transfer.Card.ID,
+			"name":  result.Transfer.Card.Name,
+			"color": result.Transfer.Card.Color,
 		}
 	}
 
