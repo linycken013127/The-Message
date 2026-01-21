@@ -5,7 +5,9 @@
       "Bash(git commit:*)",
       "Bash(tree:*)",
       "Bash(wc:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(go build:*)",
+      "Bash(go test:*)"
     ]
   }
 }
