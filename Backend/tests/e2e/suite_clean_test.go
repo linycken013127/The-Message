@@ -29,18 +29,21 @@ import (
 // CleanArchTestSuite Clean Architecture 整合測試套件
 type CleanArchTestSuite struct {
 	suite.Suite
-	db              *gorm.DB
-	tx              *gorm.DB
-	server          *httptest.Server
-	gameRepo        repository.GameRepository
-	playerRepo      repository.PlayerRepository
-	playerCardRepo  repository.PlayerCardRepository
-	accountRepo     repository.AccountRepository
-	gamePlayerRepo  repository.GamePlayerRepository
-	gameUseCase     usecase.GameUseCase
-	playerUseCase   usecase.PlayerUseCase
-	accountUseCase  usecase.AccountUseCase
-	gameRoomUseCase usecase.GameRoomUseCase
+	db                 *gorm.DB
+	tx                 *gorm.DB
+	server             *httptest.Server
+	gameRepo           repository.GameRepository
+	playerRepo         repository.PlayerRepository
+	playerCardRepo     repository.PlayerCardRepository
+	accountRepo        repository.AccountRepository
+	gamePlayerRepo     repository.GamePlayerRepository
+	actionPassRepo     repository.ActionPassRepository
+	gameUseCase        usecase.GameUseCase
+	playerUseCase      usecase.PlayerUseCase
+	accountUseCase     usecase.AccountUseCase
+	gameRoomUseCase    usecase.GameRoomUseCase
+	actionPhaseUseCase usecase.ActionPhaseUseCase
+	deckUseCase        usecase.DeckUseCase
 }
 
 func (suite *CleanArchTestSuite) SetupSuite() {
@@ -94,6 +97,7 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 	gameProgressRepo := mysql.NewGameProgressRepository(db)
 	accountRepo := mysql.NewAccountRepository(db)
 	gamePlayerRepo := mysql.NewGamePlayerRepository(db)
+	actionPassRepo := mysql.NewActionPassRepository(db)
 
 	// 初始化 Use Cases（Use Case Layer）
 	cardUseCase := usecase.NewCardUseCase(&usecase.CardUseCaseOptions{
@@ -137,6 +141,14 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 		GameUseCase:    gameUseCase,
 	})
 
+	actionPhaseUseCase := usecase.NewActionPhaseUseCase(&usecase.ActionPhaseUseCaseOptions{
+		GameRepo:       gameRepo,
+		PlayerRepo:     playerRepo,
+		PlayerCardRepo: playerCardRepo,
+		DeckUseCase:    deckUseCase,
+		ActionPassRepo: actionPassRepo,
+	})
+
 	// 註冊 HTTP Handlers
 	handler.RegisterGameHandler(&handler.GameHandlerOptions{
 		Engine:        engine,
@@ -168,6 +180,11 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 		AccountRepo:     accountRepo,
 	})
 
+	handler.RegisterActionPhaseHandler(&handler.ActionPhaseHandlerOptions{
+		Engine:             engine,
+		ActionPhaseUseCase: actionPhaseUseCase,
+	})
+
 	server := httptest.NewServer(engine)
 
 	suite.db = db
@@ -181,6 +198,9 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 	suite.accountUseCase = accountUseCase
 	suite.gamePlayerRepo = gamePlayerRepo
 	suite.gameRoomUseCase = gameRoomUseCase
+	suite.actionPassRepo = actionPassRepo
+	suite.actionPhaseUseCase = actionPhaseUseCase
+	suite.deckUseCase = deckUseCase
 }
 
 func (suite *CleanArchTestSuite) TearDownSuite() {

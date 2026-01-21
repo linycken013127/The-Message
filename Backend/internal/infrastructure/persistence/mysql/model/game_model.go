@@ -13,6 +13,7 @@ type GameModel struct {
 	Id              int                `gorm:"primaryKey;auto_increment"`
 	Token           string
 	Status          string
+	Phase           string
 	CurrentPlayerId int
 	HostAccountId   int
 	MaxPlayers      int
@@ -35,6 +36,7 @@ func (m *GameModel) ToEntity() *entity.Game {
 		ID:              m.Id,
 		Token:           m.Token,
 		Status:          m.Status,
+		Phase:           m.Phase,
 		CurrentPlayerID: m.CurrentPlayerId,
 		HostAccountID:   m.HostAccountId,
 		MaxPlayers:      m.MaxPlayers,
@@ -64,6 +66,7 @@ func GameModelFromEntity(e *entity.Game) *GameModel {
 		Id:              e.ID,
 		Token:           e.Token,
 		Status:          e.Status,
+		Phase:           e.Phase,
 		CurrentPlayerId: e.CurrentPlayerID,
 		HostAccountId:   e.HostAccountID,
 		MaxPlayers:      e.MaxPlayers,

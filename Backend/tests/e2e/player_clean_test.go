@@ -22,8 +22,8 @@ func (suite *CleanArchTestSuite) TestPlayCardE2E() {
 	api := "/api/v1/players/{player_id}/player-cards"
 	game, _ := suite.gameUseCase.InitGame(context.TODO())
 
-	// Fake player count random 1~3
-	playerCount := rand.Intn(3) + 1
+	// Fixed player count to 3 (InitIdentityCards only supports 3, 5-9 players)
+	playerCount := 3
 
 	// Fake players data
 	var players []usecase.PlayerInfo
@@ -78,8 +78,8 @@ func (suite *CleanArchTestSuite) TestTransmitIntelligenceE2E() {
 	api := "/api/v1/player/{player_id}/transmit-intelligence"
 	game, _ := suite.gameUseCase.InitGame(context.TODO())
 
-	// Fake player count random 1~3
-	playerCount := rand.Intn(3) + 1
+	// Fixed player count to 3 (InitIdentityCards only supports 3, 5-9 players)
+	playerCount := 3
 
 	// Fake players data
 	var players []usecase.PlayerInfo

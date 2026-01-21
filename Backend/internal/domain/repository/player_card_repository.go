@@ -28,4 +28,7 @@ type PlayerCardRepository interface {
 
 	// GetPlayerCards 取得玩家手牌
 	GetPlayerCards(ctx context.Context, playerCard *entity.PlayerCard) (*[]entity.PlayerCard, error)
+
+	// CountHandCardsByPlayerID 計算玩家手牌數量
+	CountHandCardsByPlayerID(ctx context.Context, playerID int) (int, error)
 }

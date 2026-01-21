@@ -192,6 +192,7 @@ func (uc *gameRoomUseCase) StartGame(ctx context.Context, gameID int, accountID 
 	// 設定第一位行動玩家並更新遊戲狀態
 	game.CurrentPlayerID = firstPlayerID
 	game.Status = entity.GameRoomStatusPlaying
+	game.Phase = entity.GamePhaseAction
 	err = uc.gameRepo.UpdateGame(ctx, game)
 	if err != nil {
 		return nil, err
