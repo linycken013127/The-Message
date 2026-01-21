@@ -1,0 +1,7 @@
+BEGIN;
+
+DROP TABLE IF EXISTS action_passes;
+
+ALTER TABLE games DROP COLUMN phase;
+
+COMMIT;

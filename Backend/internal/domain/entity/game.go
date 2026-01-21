@@ -11,6 +11,7 @@ type Game struct {
 	ID              int
 	Token           string
 	Status          string
+	Phase           string
 	CurrentPlayerID int
 	HostAccountID   int
 	MaxPlayers      int
@@ -127,6 +128,12 @@ const (
 	GameRoomStatusEnded   = "ENDED"   // 已結束
 )
 
+// 遊戲階段常數
+const (
+	GamePhaseAction       = "ACTION"       // 行動階段
+	GamePhaseIntelligence = "INTELLIGENCE" // 情報階段
+)
+
 // 遊戲房人數限制
 const (
 	GameMinPlayers = 3
@@ -142,4 +149,16 @@ var (
 	ErrNotEnoughPlayers        = errors.New("人數不足，至少需要 3 人")
 	ErrAlreadyInGame           = errors.New("你已經在這個遊戲房中")
 	ErrPlayerCountNotSupported = errors.New("不支援此人數配置，請選擇 3、5-9 人")
+)
+
+// 行動階段相關錯誤
+var (
+	ErrNotYourTurn              = errors.New("還沒輪到你")
+	ErrNotInActionPhase         = errors.New("不在行動階段")
+	ErrNotInIntelligencePhase   = errors.New("不在情報階段")
+	ErrDeckNotEnough            = errors.New("牌堆不足")
+	ErrCannotPlayLastCard       = errors.New("不能打出最後一張手牌")
+	ErrCardNotInHand            = errors.New("這張牌不在你的手牌中")
+	ErrAlreadyDrawnThisTurn     = errors.New("本回合已經抽過牌了")
+	ErrMustDrawBeforeOtherAction = errors.New("必須先抽牌")
 )

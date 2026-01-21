@@ -112,3 +112,13 @@ func (r *PlayerCardRepository) GetPlayerCardsByGameId(ctx context.Context, gameI
 
 	return playerCards, nil
 }
+
+// CountHandCardsByPlayerID 計算玩家手牌數量
+func (r *PlayerCardRepository) CountHandCardsByPlayerID(ctx context.Context, playerID int) (int, error) {
+	var count int64
+	result := r.db.Model(&model.PlayerCardModel{}).Where("player_id = ? AND type = ?", playerID, entity.PlayerCardTypeHand).Count(&count)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return int(count), nil
+}
