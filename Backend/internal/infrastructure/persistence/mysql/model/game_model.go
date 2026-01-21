@@ -10,7 +10,7 @@ import (
 // GameModel GORM 遊戲模型
 type GameModel struct {
 	gorm.Model
-	Id              int                `gorm:"primaryKey;auto_increment"`
+	Id              int `gorm:"primaryKey;auto_increment"`
 	Token           string
 	Status          string
 	Phase           string
@@ -18,10 +18,11 @@ type GameModel struct {
 	HostAccountId   int
 	MaxPlayers      int
 	CurrentPlayers  int
-	Players         []PlayerModel      `gorm:"foreignKey:GameId"`
-	GamePlayers     []GamePlayerModel  `gorm:"foreignKey:GameId"`
-	CreatedAt       time.Time          `gorm:"autoCreateTime"`
-	UpdatedAt       time.Time          `gorm:"autoCreateTime"`
+	Winner          string
+	Players         []PlayerModel     `gorm:"foreignKey:GameId"`
+	GamePlayers     []GamePlayerModel `gorm:"foreignKey:GameId"`
+	CreatedAt       time.Time         `gorm:"autoCreateTime"`
+	UpdatedAt       time.Time         `gorm:"autoCreateTime"`
 	DeletedAt       gorm.DeletedAt
 }
 
@@ -41,6 +42,7 @@ func (m *GameModel) ToEntity() *entity.Game {
 		HostAccountID:   m.HostAccountId,
 		MaxPlayers:      m.MaxPlayers,
 		CurrentPlayers:  m.CurrentPlayers,
+		Winner:          m.Winner,
 		CreatedAt:       m.CreatedAt,
 		UpdatedAt:       m.UpdatedAt,
 		Players:         make([]entity.Player, 0, len(m.Players)),
@@ -71,6 +73,7 @@ func GameModelFromEntity(e *entity.Game) *GameModel {
 		HostAccountId:   e.HostAccountID,
 		MaxPlayers:      e.MaxPlayers,
 		CurrentPlayers:  e.CurrentPlayers,
+		Winner:          e.Winner,
 		CreatedAt:       e.CreatedAt,
 		UpdatedAt:       e.UpdatedAt,
 	}

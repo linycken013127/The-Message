@@ -25,4 +25,7 @@ type PlayerRepository interface {
 
 	// GetPlayerWithGamePlayersAndPlayerCardsCard 查詢玩家完整關聯資料
 	GetPlayerWithGamePlayersAndPlayerCardsCard(ctx context.Context, playerID int) (*entity.Player, error)
+
+	// UpdatePlayer 更新玩家
+	UpdatePlayer(ctx context.Context, player *entity.Player) error
 }

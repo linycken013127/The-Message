@@ -16,6 +16,7 @@ type Game struct {
 	HostAccountID   int
 	MaxPlayers      int
 	CurrentPlayers  int
+	Winner          string // 勝利者身份（潛伏戰線/軍情處），空字串表示平局
 	Players         []Player
 	GamePlayers     []GamePlayer
 	CreatedAt       time.Time
@@ -153,12 +154,12 @@ var (
 
 // 行動階段相關錯誤
 var (
-	ErrNotYourTurn              = errors.New("還沒輪到你")
-	ErrNotInActionPhase         = errors.New("不在行動階段")
-	ErrNotInIntelligencePhase   = errors.New("不在情報階段")
-	ErrDeckNotEnough            = errors.New("牌堆不足")
-	ErrCannotPlayLastCard       = errors.New("不能打出最後一張手牌")
-	ErrCardNotInHand            = errors.New("這張牌不在你的手牌中")
-	ErrAlreadyDrawnThisTurn     = errors.New("本回合已經抽過牌了")
+	ErrNotYourTurn               = errors.New("還沒輪到你")
+	ErrNotInActionPhase          = errors.New("不在行動階段")
+	ErrNotInIntelligencePhase    = errors.New("不在情報階段")
+	ErrDeckNotEnough             = errors.New("牌堆不足")
+	ErrCannotPlayLastCard        = errors.New("不能打出最後一張手牌")
+	ErrCardNotInHand             = errors.New("這張牌不在你的手牌中")
+	ErrAlreadyDrawnThisTurn      = errors.New("本回合已經抽過牌了")
 	ErrMustDrawBeforeOtherAction = errors.New("必須先抽牌")
 )

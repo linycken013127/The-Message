@@ -94,3 +94,9 @@ func (r *PlayerRepository) GetPlayerWithGamePlayersAndPlayerCardsCard(ctx contex
 
 	return playerModel.ToEntity(), nil
 }
+
+// UpdatePlayer 更新玩家
+func (r *PlayerRepository) UpdatePlayer(ctx context.Context, player *entity.Player) error {
+	playerModel := model.PlayerModelFromEntity(player)
+	return r.db.Save(playerModel).Error
+}

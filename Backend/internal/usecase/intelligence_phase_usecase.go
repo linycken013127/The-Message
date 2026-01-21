@@ -21,8 +21,10 @@ type IntelligencePhaseUseCase interface {
 
 // AcceptIntelligenceResult 接收情報結果
 type AcceptIntelligenceResult struct {
-	PlayerID int
-	CardID   int
+	PlayerID   int
+	CardID     int
+	PlayerDied bool // 玩家是否死亡
+	GameEnded  bool // 遊戲是否結束（平局）
 }
 
 // RejectIntelligenceResult 拒絕情報結果
@@ -31,6 +33,8 @@ type RejectIntelligenceResult struct {
 	AutoAccepted   bool   // 是否自動接收（回到發送者或直達被拒絕）
 	AutoAcceptedBy int    // 自動接收的玩家 ID
 	Message        string // 回傳訊息
+	PlayerDied     bool   // 玩家是否死亡
+	GameEnded      bool   // 遊戲是否結束（平局）
 }
 
 // intelligencePhaseUseCase 情報階段用例實作
@@ -378,7 +382,29 @@ func (uc *intelligencePhaseUseCase) completeIntelligenceTransfer(ctx context.Con
 		return nil, err
 	}
 
+	// 檢查接收者是否死亡（黑色情報 >= 3）
+	playerDied, gameEnded, err := uc.checkAndHandleDeath(ctx, receiverID, transfer.GameID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 如果遊戲結束（平局），不需要更新當前玩家
+	if gameEnded {
+		return &AcceptIntelligenceResult{
+			PlayerID:   receiverID,
+			CardID:     transfer.CardID,
+			PlayerDied: playerDied,
+			GameEnded:  gameEnded,
+		}, nil
+	}
+
 	// 遊戲進入下一回合（行動階段）
+	// 重新取得遊戲狀態（可能已被 checkAndHandleDeath 更新）
+	game, err = uc.gameRepo.GetGameWithPlayers(ctx, transfer.GameID)
+	if err != nil {
+		return nil, err
+	}
+
 	game.Phase = entity.GamePhaseAction
 	game.CurrentPlayerID = receiverID
 	err = uc.gameRepo.UpdateGame(ctx, game)
@@ -387,7 +413,97 @@ func (uc *intelligencePhaseUseCase) completeIntelligenceTransfer(ctx context.Con
 	}
 
 	return &AcceptIntelligenceResult{
-		PlayerID: receiverID,
-		CardID:   transfer.CardID,
+		PlayerID:   receiverID,
+		CardID:     transfer.CardID,
+		PlayerDied: playerDied,
+		GameEnded:  gameEnded,
 	}, nil
+}
+
+// checkAndHandleDeath 檢查並處理玩家死亡
+func (uc *intelligencePhaseUseCase) checkAndHandleDeath(ctx context.Context, playerID int, gameID int) (playerDied bool, gameEnded bool, err error) {
+	// 計算黑色情報數量
+	blackCount, err := uc.countPlayerBlackIntelligence(ctx, playerID)
+	if err != nil {
+		return false, false, err
+	}
+
+	// 黑色情報 >= 3 則死亡
+	if blackCount >= 3 {
+		// 殺死玩家
+		player, err := uc.playerRepo.GetPlayerById(ctx, playerID)
+		if err != nil {
+			return false, false, err
+		}
+		player.Status = entity.PlayerStatusDead
+		err = uc.playerRepo.UpdatePlayer(ctx, player)
+		if err != nil {
+			return false, false, err
+		}
+
+		// 檢查是否所有玩家都死亡
+		allDead, err := uc.checkAllPlayersDead(ctx, gameID)
+		if err != nil {
+			return true, false, err
+		}
+
+		if allDead {
+			// 以平局結束遊戲
+			err = uc.endGameAsDraw(ctx, gameID)
+			if err != nil {
+				return true, false, err
+			}
+			return true, true, nil
+		}
+
+		return true, false, nil
+	}
+
+	return false, false, nil
+}
+
+// countPlayerBlackIntelligence 計算玩家黑色情報數量
+func (uc *intelligencePhaseUseCase) countPlayerBlackIntelligence(ctx context.Context, playerID int) (int, error) {
+	player, err := uc.playerRepo.GetPlayerWithPlayerCards(ctx, playerID)
+	if err != nil {
+		return 0, err
+	}
+
+	blackCount := 0
+	for _, pc := range player.PlayerCards {
+		if pc.Type == entity.PlayerCardTypeIntelligence && pc.Card.Color == entity.CardColorBlack {
+			blackCount++
+		}
+	}
+
+	return blackCount, nil
+}
+
+// checkAllPlayersDead 檢查是否所有玩家都死亡
+func (uc *intelligencePhaseUseCase) checkAllPlayersDead(ctx context.Context, gameID int) (bool, error) {
+	players, err := uc.playerRepo.GetPlayersByGameId(ctx, gameID)
+	if err != nil {
+		return false, err
+	}
+
+	for _, player := range players {
+		if player.Status != entity.PlayerStatusDead {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// endGameAsDraw 以平局結束遊戲
+func (uc *intelligencePhaseUseCase) endGameAsDraw(ctx context.Context, gameID int) error {
+	game, err := uc.gameRepo.GetGameById(ctx, gameID)
+	if err != nil {
+		return err
+	}
+
+	game.Status = entity.GameRoomStatusEnded
+	game.Winner = "" // 空字串表示平局
+
+	return uc.gameRepo.UpdateGame(ctx, game)
 }
