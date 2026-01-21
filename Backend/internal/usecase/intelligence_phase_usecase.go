@@ -23,8 +23,9 @@ type IntelligencePhaseUseCase interface {
 type AcceptIntelligenceResult struct {
 	PlayerID   int
 	CardID     int
-	PlayerDied bool // 玩家是否死亡
-	GameEnded  bool // 遊戲是否結束（平局）
+	PlayerDied bool   // 玩家是否死亡
+	GameEnded  bool   // 遊戲是否結束（平局或勝利）
+	Winner     string // 勝利者身份（潛伏戰線/軍情處），空字串表示平局或遊戲繼續
 }
 
 // RejectIntelligenceResult 拒絕情報結果
@@ -34,7 +35,8 @@ type RejectIntelligenceResult struct {
 	AutoAcceptedBy int    // 自動接收的玩家 ID
 	Message        string // 回傳訊息
 	PlayerDied     bool   // 玩家是否死亡
-	GameEnded      bool   // 遊戲是否結束（平局）
+	GameEnded      bool   // 遊戲是否結束（平局或勝利）
+	Winner         string // 勝利者身份（潛伏戰線/軍情處），空字串表示平局或遊戲繼續
 }
 
 // intelligencePhaseUseCase 情報階段用例實作
@@ -264,7 +266,7 @@ func (uc *intelligencePhaseUseCase) RejectIntelligence(ctx context.Context, game
 	switch card.IntelligenceType {
 	case entity.IntelligenceTypeDirect:
 		// 直達情報被拒絕，自動歸屬發送者
-		_, err := uc.completeIntelligenceTransfer(ctx, transfer, transfer.SenderPlayerID)
+		result, err := uc.completeIntelligenceTransfer(ctx, transfer, transfer.SenderPlayerID)
 		if err != nil {
 			return nil, err
 		}
@@ -273,6 +275,9 @@ func (uc *intelligencePhaseUseCase) RejectIntelligence(ctx context.Context, game
 			AutoAccepted:   true,
 			AutoAcceptedBy: transfer.SenderPlayerID,
 			Message:        "情報已被發送者自動接收",
+			PlayerDied:     result.PlayerDied,
+			GameEnded:      result.GameEnded,
+			Winner:         result.Winner,
 		}, nil
 
 	case entity.IntelligenceTypeSecretTelegram, entity.IntelligenceTypeDocument:
@@ -282,7 +287,7 @@ func (uc *intelligencePhaseUseCase) RejectIntelligence(ctx context.Context, game
 		// 檢查是否回到發送者
 		if nextTargetID == transfer.SenderPlayerID {
 			// 回到發送者，自動接收
-			_, err := uc.completeIntelligenceTransfer(ctx, transfer, transfer.SenderPlayerID)
+			result, err := uc.completeIntelligenceTransfer(ctx, transfer, transfer.SenderPlayerID)
 			if err != nil {
 				return nil, err
 			}
@@ -291,6 +296,9 @@ func (uc *intelligencePhaseUseCase) RejectIntelligence(ctx context.Context, game
 				AutoAccepted:   true,
 				AutoAcceptedBy: transfer.SenderPlayerID,
 				Message:        "情報已被發送者自動接收",
+				PlayerDied:     result.PlayerDied,
+				GameEnded:      result.GameEnded,
+				Winner:         result.Winner,
 			}, nil
 		}
 
@@ -321,7 +329,7 @@ func (uc *intelligencePhaseUseCase) RejectIntelligence(ctx context.Context, game
 		// 未知類型，預設為密電處理
 		nextTargetID := uc.getNextAlivePlayerID(game, playerID)
 		if nextTargetID == transfer.SenderPlayerID {
-			_, err := uc.completeIntelligenceTransfer(ctx, transfer, transfer.SenderPlayerID)
+			result, err := uc.completeIntelligenceTransfer(ctx, transfer, transfer.SenderPlayerID)
 			if err != nil {
 				return nil, err
 			}
@@ -330,6 +338,9 @@ func (uc *intelligencePhaseUseCase) RejectIntelligence(ctx context.Context, game
 				AutoAccepted:   true,
 				AutoAcceptedBy: transfer.SenderPlayerID,
 				Message:        "情報已被發送者自動接收",
+				PlayerDied:     result.PlayerDied,
+				GameEnded:      result.GameEnded,
+				Winner:         result.Winner,
 			}, nil
 		}
 
@@ -383,6 +394,7 @@ func (uc *intelligencePhaseUseCase) completeIntelligenceTransfer(ctx context.Con
 	}
 
 	// 檢查接收者是否死亡（黑色情報 >= 3）
+	// 死亡條件優先於勝利條件
 	playerDied, gameEnded, err := uc.checkAndHandleDeath(ctx, receiverID, transfer.GameID)
 	if err != nil {
 		return nil, err
@@ -395,11 +407,32 @@ func (uc *intelligencePhaseUseCase) completeIntelligenceTransfer(ctx context.Con
 			CardID:     transfer.CardID,
 			PlayerDied: playerDied,
 			GameEnded:  gameEnded,
+			Winner:     "", // 平局
 		}, nil
 	}
 
+	// 如果玩家沒有死亡，檢查勝利條件
+	var winner string
+	if !playerDied {
+		gameEnded, winner, err = uc.checkAndHandleVictory(ctx, receiverID, transfer.GameID)
+		if err != nil {
+			return nil, err
+		}
+
+		// 如果有人獲勝，遊戲結束
+		if gameEnded {
+			return &AcceptIntelligenceResult{
+				PlayerID:   receiverID,
+				CardID:     transfer.CardID,
+				PlayerDied: false,
+				GameEnded:  true,
+				Winner:     winner,
+			}, nil
+		}
+	}
+
 	// 遊戲進入下一回合（行動階段）
-	// 重新取得遊戲狀態（可能已被 checkAndHandleDeath 更新）
+	// 重新取得遊戲狀態（可能已被更新）
 	game, err = uc.gameRepo.GetGameWithPlayers(ctx, transfer.GameID)
 	if err != nil {
 		return nil, err
@@ -416,7 +449,8 @@ func (uc *intelligencePhaseUseCase) completeIntelligenceTransfer(ctx context.Con
 		PlayerID:   receiverID,
 		CardID:     transfer.CardID,
 		PlayerDied: playerDied,
-		GameEnded:  gameEnded,
+		GameEnded:  false,
+		Winner:     "",
 	}, nil
 }
 
@@ -504,6 +538,81 @@ func (uc *intelligencePhaseUseCase) endGameAsDraw(ctx context.Context, gameID in
 
 	game.Status = entity.GameRoomStatusEnded
 	game.Winner = "" // 空字串表示平局
+
+	return uc.gameRepo.UpdateGame(ctx, game)
+}
+
+// checkAndHandleVictory 檢查並處理勝利條件
+// 回傳：gameEnded（遊戲是否結束）、winner（勝利者身份）、error
+func (uc *intelligencePhaseUseCase) checkAndHandleVictory(ctx context.Context, playerID int, gameID int) (gameEnded bool, winner string, err error) {
+	// 取得玩家資訊
+	player, err := uc.playerRepo.GetPlayerById(ctx, playerID)
+	if err != nil {
+		return false, "", err
+	}
+
+	// 打醬油無法單獨觸發勝利
+	if player.IdentityCard == entity.IdentityBystander {
+		return false, "", nil
+	}
+
+	// 計算玩家的紅色和藍色情報數量
+	redCount, blueCount, err := uc.countPlayerColoredIntelligence(ctx, playerID)
+	if err != nil {
+		return false, "", err
+	}
+
+	// 檢查潛伏戰線勝利條件（紅色情報 >= 3）
+	if player.IdentityCard == entity.IdentityUndercoverFront && redCount >= 3 {
+		err = uc.endGameWithWinner(ctx, gameID, entity.IdentityUndercoverFront)
+		if err != nil {
+			return false, "", err
+		}
+		return true, entity.IdentityUndercoverFront, nil
+	}
+
+	// 檢查軍情處勝利條件（藍色情報 >= 3）
+	if player.IdentityCard == entity.IdentityMilitaryAgency && blueCount >= 3 {
+		err = uc.endGameWithWinner(ctx, gameID, entity.IdentityMilitaryAgency)
+		if err != nil {
+			return false, "", err
+		}
+		return true, entity.IdentityMilitaryAgency, nil
+	}
+
+	return false, "", nil
+}
+
+// countPlayerColoredIntelligence 計算玩家紅色和藍色情報數量
+func (uc *intelligencePhaseUseCase) countPlayerColoredIntelligence(ctx context.Context, playerID int) (redCount int, blueCount int, err error) {
+	player, err := uc.playerRepo.GetPlayerWithPlayerCards(ctx, playerID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	for _, pc := range player.PlayerCards {
+		if pc.Type == entity.PlayerCardTypeIntelligence {
+			switch pc.Card.Color {
+			case entity.CardColorRed:
+				redCount++
+			case entity.CardColorBlue:
+				blueCount++
+			}
+		}
+	}
+
+	return redCount, blueCount, nil
+}
+
+// endGameWithWinner 以指定勝利者結束遊戲
+func (uc *intelligencePhaseUseCase) endGameWithWinner(ctx context.Context, gameID int, winner string) error {
+	game, err := uc.gameRepo.GetGameById(ctx, gameID)
+	if err != nil {
+		return err
+	}
+
+	game.Status = entity.GameRoomStatusEnded
+	game.Winner = winner
 
 	return uc.gameRepo.UpdateGame(ctx, game)
 }
