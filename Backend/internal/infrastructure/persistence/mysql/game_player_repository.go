@@ -79,3 +79,15 @@ func (r *GamePlayerRepository) CountByGameID(ctx context.Context, gameID int) (i
 
 	return int(count), nil
 }
+
+// GetGamePlayerByGameIDAndAccountID 根據遊戲 ID 和帳號 ID 取得玩家關聯
+func (r *GamePlayerRepository) GetGamePlayerByGameIDAndAccountID(ctx context.Context, gameID int, accountID int) (*entity.GamePlayer, error) {
+	var gamePlayerModel model.GamePlayerModel
+
+	result := r.db.Where("game_id = ? AND account_id = ?", gameID, accountID).First(&gamePlayerModel)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return gamePlayerModel.ToEntity(), nil
+}

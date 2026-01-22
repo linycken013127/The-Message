@@ -46,6 +46,7 @@ type CleanArchTestSuite struct {
 	actionPhaseUseCase       usecase.ActionPhaseUseCase
 	intelligencePhaseUseCase usecase.IntelligencePhaseUseCase
 	deckUseCase              usecase.DeckUseCase
+	gameQueryUseCase         usecase.GameQueryUseCase
 }
 
 func (suite *CleanArchTestSuite) SetupSuite() {
@@ -160,6 +161,14 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 		IntelligenceTransferRepo: intelligenceTransferRepo,
 	})
 
+	gameQueryUseCase := usecase.NewGameQueryUseCase(&usecase.GameQueryUseCaseOptions{
+		GameRepo:                 gameRepo,
+		PlayerRepo:               playerRepo,
+		PlayerCardRepo:           playerCardRepo,
+		GamePlayerRepo:           gamePlayerRepo,
+		IntelligenceTransferRepo: intelligenceTransferRepo,
+	})
+
 	// 註冊 HTTP Handlers
 	handler.RegisterGameHandler(&handler.GameHandlerOptions{
 		Engine:        engine,
@@ -201,6 +210,12 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 		IntelligencePhaseUseCase: intelligencePhaseUseCase,
 	})
 
+	handler.RegisterGameQueryHandler(&handler.GameQueryHandlerOptions{
+		Engine:           engine,
+		GameQueryUseCase: gameQueryUseCase,
+		AccountRepo:      accountRepo,
+	})
+
 	server := httptest.NewServer(engine)
 
 	suite.db = db
@@ -219,6 +234,7 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 	suite.intelligenceTransferRepo = intelligenceTransferRepo
 	suite.intelligencePhaseUseCase = intelligencePhaseUseCase
 	suite.deckUseCase = deckUseCase
+	suite.gameQueryUseCase = gameQueryUseCase
 }
 
 func (suite *CleanArchTestSuite) TearDownSuite() {

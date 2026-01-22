@@ -19,4 +19,7 @@ type GamePlayerRepository interface {
 
 	// CountByGameID 計算遊戲中的玩家數量
 	CountByGameID(ctx context.Context, gameID int) (int, error)
+
+	// GetGamePlayerByGameIDAndAccountID 根據遊戲 ID 和帳號 ID 取得玩家關聯
+	GetGamePlayerByGameIDAndAccountID(ctx context.Context, gameID int, accountID int) (*entity.GamePlayer, error)
 }
