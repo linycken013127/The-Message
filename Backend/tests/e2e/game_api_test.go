@@ -9,6 +9,8 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestStartGameE2E() {
+	suite.T().Skip("Skipping legacy test - covered by CleanArchTestSuite")
+
 	players := []Player{
 		{ID: "6497f6f226b40d440b9a90cc", Name: "A"},
 		{ID: "6498112b26b40d440b9a90ce", Name: "B"},
