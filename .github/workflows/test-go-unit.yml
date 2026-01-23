@@ -19,10 +19,10 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -46,9 +46,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
       - name: Setup Go environment
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -80,9 +80,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
       - name: Setup Go environment
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -98,9 +98,7 @@ jobs:
 
       - name: Migration
         working-directory: ./Backend
-        run: |
-          go run ./cmd/migrate/migrate.go
-          go run ./cmd/migrate/game_card_seeder.go
+        run: go run ./cmd/migrate/refresh.go
 
       - name: 🎯 Acceptance test
         working-directory: ./Backend
