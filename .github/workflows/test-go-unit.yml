@@ -57,7 +57,7 @@ jobs:
         run: go test $(go list ./... | grep -v /tests/) -count=1 -v  -coverprofile=unit_test_coverage.out
 
       - name: Upload unit test coverage report as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: unit-test-coverage-report
           path: ./Backend/unit_test_coverage.out
@@ -107,7 +107,7 @@ jobs:
         run: go test ./... -v -count=1 -coverprofile=coverage.out
 
       - name: Upload acceptance test coverage report as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: acceptance-test-coverage-report
           path: ./Backend/coverage.out
