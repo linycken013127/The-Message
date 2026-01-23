@@ -48,9 +48,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup Go environment
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
+
+      - name: Env handle
+        working-directory: ./Backend
+        run: cp env .env
 
       - name: 🧪 Test
         working-directory: ./Backend
@@ -76,13 +80,18 @@ jobs:
           MYSQL_PASSWORD: ${{ secrets.DB_PASSWORD }}
         ports:
           - "3306:3306"
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup Go environment
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -90,15 +99,9 @@ jobs:
         working-directory: ./Backend
         run: cp env .env
 
-      - name: Wait for MySQL
-        run: |
-          wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
-          chmod +x wait-for-it.sh
-          ./wait-for-it.sh 127.0.0.1:3306 --timeout=60
-
       - name: Migration
         working-directory: ./Backend
-        run: go run ./cmd/migrate/refresh.go
+        run: go run -tags migrate ./cmd/migrate/refresh.go
 
       - name: 🎯 Acceptance test
         working-directory: ./Backend
