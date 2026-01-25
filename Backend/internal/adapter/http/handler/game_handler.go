@@ -76,13 +76,6 @@ func (h *GameHandler) StartGame(c *gin.Context) {
 		return
 	}
 
-	h.SSE.Message <- gin.H{
-		"message":     "Game started",
-		"status":      "started",
-		"game_id":     game.ID,
-		"next_player": game.Players[0].ID,
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"Id":    game.ID,
 		"Token": game.Token,

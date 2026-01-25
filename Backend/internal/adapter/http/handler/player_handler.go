@@ -1,12 +1,10 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/Game-as-a-Service/The-Message/internal/adapter/http/request"
-	"github.com/Game-as-a-Service/The-Message/internal/adapter/sse"
 	"github.com/Game-as-a-Service/The-Message/internal/usecase"
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +13,6 @@ import (
 type PlayerHandler struct {
 	playerUseCase usecase.PlayerUseCase
 	gameUseCase   usecase.GameUseCase
-	SSE           *sse.Event
 }
 
 // PlayerHandlerOptions 玩家處理器選項
@@ -23,7 +20,6 @@ type PlayerHandlerOptions struct {
 	Engine        *gin.Engine
 	PlayerUseCase usecase.PlayerUseCase
 	GameUseCase   usecase.GameUseCase
-	SSE           *sse.Event
 }
 
 // RegisterPlayerHandler 註冊玩家處理器
@@ -31,7 +27,6 @@ func RegisterPlayerHandler(opts *PlayerHandlerOptions) {
 	handler := &PlayerHandler{
 		playerUseCase: opts.PlayerUseCase,
 		gameUseCase:   opts.GameUseCase,
-		SSE:           opts.SSE,
 	}
 
 	opts.Engine.POST("/api/v1/players/:playerId/player-cards", handler.PlayCard)
@@ -58,18 +53,10 @@ func (h *PlayerHandler) PlayCard(c *gin.Context) {
 		return
 	}
 
-	game, card, err := h.playerUseCase.PlayCard(c, playerID, req.CardID)
+	_, _, err := h.playerUseCase.PlayCard(c, playerID, req.CardID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
-	}
-
-	h.SSE.Message <- gin.H{
-		"game_id":     game.ID,
-		"status":      game.Status,
-		"message":     fmt.Sprintf("玩家: %d 已出牌", playerID),
-		"card":        card.Name,
-		"next_player": game.CurrentPlayerID,
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -134,15 +121,6 @@ func (h *PlayerHandler) AcceptCard(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
-	}
-
-	if result.Winner != nil {
-		h.SSE.Message <- gin.H{
-			"game_id": result.Winner.Game.ID,
-			"status":  result.Winner.Game.Status,
-			"message": fmt.Sprintf("玩家: %d 已贏得遊戲", playerID),
-			"winner":  result.Winner.Name,
-		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

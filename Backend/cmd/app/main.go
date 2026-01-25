@@ -23,6 +23,7 @@ func main() {
 	// 2. 初始化 Gin Engine 與 SSE（Adapter Layer）
 	engine := gin.Default()
 	sseServer := sse.NewSSEServer()
+	eventPublisher := sse.NewSSEEventPublisher(sseServer)
 
 	// 3. 初始化 Repository（Infrastructure Layer）
 	// Repository 實作依賴於 GORM，但介面定義於 Domain Layer
@@ -56,13 +57,15 @@ func main() {
 		PlayerCardRepo:   playerCardRepo,
 		GameRepo:         gameRepo,
 		GameProgressRepo: gameProgressRepo,
+		EventPublisher:   eventPublisher,
 	})
 
 	gameUseCase := usecase.NewGameUseCase(&usecase.GameUseCaseOptions{
-		GameRepo:      gameRepo,
-		PlayerUseCase: playerUseCase,
-		CardUseCase:   cardUseCase,
-		DeckUseCase:   deckUseCase,
+		GameRepo:       gameRepo,
+		PlayerUseCase:  playerUseCase,
+		CardUseCase:    cardUseCase,
+		DeckUseCase:    deckUseCase,
+		EventPublisher: eventPublisher,
 	})
 
 	// 處理循環依賴：PlayerUseCase 需要 GameUseCase 來執行 NextPlayer
@@ -118,7 +121,6 @@ func main() {
 		Engine:        engine,
 		PlayerUseCase: playerUseCase,
 		GameUseCase:   gameUseCase,
-		SSE:           sseServer,
 	})
 
 	handler.RegisterAccountHandler(&handler.AccountHandlerOptions{

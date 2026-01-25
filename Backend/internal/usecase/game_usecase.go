@@ -38,27 +38,30 @@ type GameUseCase interface {
 
 // gameUseCase 遊戲用例實作
 type gameUseCase struct {
-	gameRepo      repository.GameRepository
-	playerUseCase PlayerUseCase
-	cardUseCase   CardUseCase
-	deckUseCase   DeckUseCase
+	gameRepo       repository.GameRepository
+	playerUseCase  PlayerUseCase
+	cardUseCase    CardUseCase
+	deckUseCase    DeckUseCase
+	eventPublisher repository.EventPublisher
 }
 
 // GameUseCaseOptions 遊戲用例選項
 type GameUseCaseOptions struct {
-	GameRepo      repository.GameRepository
-	PlayerUseCase PlayerUseCase
-	CardUseCase   CardUseCase
-	DeckUseCase   DeckUseCase
+	GameRepo       repository.GameRepository
+	PlayerUseCase  PlayerUseCase
+	CardUseCase    CardUseCase
+	DeckUseCase    DeckUseCase
+	EventPublisher repository.EventPublisher
 }
 
 // NewGameUseCase 建立遊戲用例
 func NewGameUseCase(opts *GameUseCaseOptions) GameUseCase {
 	return &gameUseCase{
-		gameRepo:      opts.GameRepo,
-		playerUseCase: opts.PlayerUseCase,
-		cardUseCase:   opts.CardUseCase,
-		deckUseCase:   opts.DeckUseCase,
+		gameRepo:       opts.GameRepo,
+		playerUseCase:  opts.PlayerUseCase,
+		cardUseCase:    opts.CardUseCase,
+		deckUseCase:    opts.DeckUseCase,
+		eventPublisher: opts.EventPublisher,
 	}
 }
 
@@ -96,7 +99,21 @@ func (uc *gameUseCase) StartGame(ctx context.Context, req CreateGameRequest) (*e
 	}
 
 	// 7. 回傳最新的遊戲資料
-	return uc.GetGameById(ctx, game.ID)
+	game, err = uc.GetGameById(ctx, game.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 8. 發送遊戲開始事件
+	if uc.eventPublisher != nil {
+		uc.eventPublisher.PublishGameStarted(repository.GameEvent{
+			GameID:     game.ID,
+			Message:    "Game started",
+			NextPlayer: game.Players[0].ID,
+		})
+	}
+
+	return game, nil
 }
 
 // InitGame 初始化遊戲

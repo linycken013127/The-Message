@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/Game-as-a-Service/The-Message/internal/domain/entity"
 	"github.com/Game-as-a-Service/The-Message/internal/domain/repository"
@@ -70,6 +71,7 @@ type playerUseCase struct {
 	gameRepo         repository.GameRepository
 	gameProgressRepo repository.GameProgressRepository
 	gameUseCase      GameUseCase
+	eventPublisher   repository.EventPublisher
 }
 
 // PlayerUseCaseOptions 玩家用例選項
@@ -78,6 +80,7 @@ type PlayerUseCaseOptions struct {
 	PlayerCardRepo   repository.PlayerCardRepository
 	GameRepo         repository.GameRepository
 	GameProgressRepo repository.GameProgressRepository
+	EventPublisher   repository.EventPublisher
 }
 
 // NewPlayerUseCase 建立玩家用例
@@ -87,6 +90,7 @@ func NewPlayerUseCase(opts *PlayerUseCaseOptions) PlayerUseCase {
 		playerCardRepo:   opts.PlayerCardRepo,
 		gameRepo:         opts.GameRepo,
 		gameProgressRepo: opts.GameProgressRepo,
+		eventPublisher:   opts.EventPublisher,
 	}
 }
 
@@ -266,6 +270,17 @@ func (uc *playerUseCase) PlayCard(ctx context.Context, playerID int, cardID int)
 		return nil, nil, err
 	}
 
+	// 發送出牌事件
+	if uc.eventPublisher != nil {
+		uc.eventPublisher.PublishCardPlayed(repository.GameEvent{
+			GameID:     game.ID,
+			Status:     game.Status,
+			Message:    fmt.Sprintf("玩家: %d 已出牌", playerID),
+			Card:       handCard.Card.Name,
+			NextPlayer: game.CurrentPlayerID,
+		})
+	}
+
 	return game, &handCard.Card, nil
 }
 
@@ -387,6 +402,16 @@ func (uc *playerUseCase) AcceptCardAndCheckWin(ctx context.Context, playerID int
 	}
 
 	winner, _ := uc.CheckWin(ctx, playerID)
+
+	// 發送勝利事件
+	if winner != nil && uc.eventPublisher != nil {
+		uc.eventPublisher.PublishGameWon(repository.GameEvent{
+			GameID:  winner.Game.ID,
+			Status:  winner.Game.Status,
+			Message: fmt.Sprintf("玩家: %d 已贏得遊戲", playerID),
+			Winner:  winner.Name,
+		})
+	}
 
 	return &AcceptCardResult{
 		Accepted: accepted,

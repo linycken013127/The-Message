@@ -89,6 +89,7 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 
 	engine := gin.Default()
 	sseServer := sse.NewSSEServer()
+	eventPublisher := sse.NewSSEEventPublisher(sseServer)
 
 	// 初始化 Repository（Infrastructure Layer）
 	gameRepo := mysql.NewGameRepository(db)
@@ -120,13 +121,15 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 		PlayerCardRepo:   playerCardRepo,
 		GameRepo:         gameRepo,
 		GameProgressRepo: gameProgressRepo,
+		EventPublisher:   eventPublisher,
 	})
 
 	gameUseCase := usecase.NewGameUseCase(&usecase.GameUseCaseOptions{
-		GameRepo:      gameRepo,
-		PlayerUseCase: playerUseCase,
-		CardUseCase:   cardUseCase,
-		DeckUseCase:   deckUseCase,
+		GameRepo:       gameRepo,
+		PlayerUseCase:  playerUseCase,
+		CardUseCase:    cardUseCase,
+		DeckUseCase:    deckUseCase,
+		EventPublisher: eventPublisher,
 	})
 
 	// 處理循環依賴
@@ -177,7 +180,6 @@ func (suite *CleanArchTestSuite) SetupSuite() {
 		Engine:        engine,
 		PlayerUseCase: playerUseCase,
 		GameUseCase:   gameUseCase,
-		SSE:           sseServer,
 	})
 
 	handler.RegisterAccountHandler(&handler.AccountHandlerOptions{
