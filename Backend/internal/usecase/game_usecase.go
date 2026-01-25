@@ -12,6 +12,8 @@ import (
 
 // GameUseCase 遊戲用例介面
 type GameUseCase interface {
+	// StartGame 開始遊戲（初始化遊戲、玩家、牌組、抽牌）
+	StartGame(ctx context.Context, req CreateGameRequest) (*entity.Game, error)
 	// InitGame 初始化遊戲
 	InitGame(ctx context.Context) (*entity.Game, error)
 	// InitDeck 初始化牌組
@@ -58,6 +60,43 @@ func NewGameUseCase(opts *GameUseCaseOptions) GameUseCase {
 		cardUseCase:   opts.CardUseCase,
 		deckUseCase:   opts.DeckUseCase,
 	}
+}
+
+// StartGame 開始遊戲（初始化遊戲、玩家、牌組、抽牌）
+func (uc *gameUseCase) StartGame(ctx context.Context, req CreateGameRequest) (*entity.Game, error) {
+	// 1. 初始化遊戲
+	game, err := uc.InitGame(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. 初始化玩家
+	if err := uc.playerUseCase.InitPlayers(ctx, game, req); err != nil {
+		return nil, err
+	}
+
+	// 3. 重新取得遊戲（包含玩家資料）
+	game, err = uc.GetGameById(ctx, game.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. 設定當前玩家和遊戲狀態
+	uc.UpdateCurrentPlayer(ctx, game, game.Players[0].ID)
+	uc.UpdateStatus(ctx, game, entity.GameStatusActionCardStage)
+
+	// 5. 初始化牌組
+	if err := uc.InitDeck(ctx, game); err != nil {
+		return nil, err
+	}
+
+	// 6. 為所有玩家抽牌
+	if err := uc.DrawCardsForAllPlayers(ctx, game); err != nil {
+		return nil, err
+	}
+
+	// 7. 回傳最新的遊戲資料
+	return uc.GetGameById(ctx, game.ID)
 }
 
 // InitGame 初始化遊戲

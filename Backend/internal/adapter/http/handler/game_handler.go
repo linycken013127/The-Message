@@ -9,7 +9,6 @@ import (
 
 	"github.com/Game-as-a-Service/The-Message/internal/adapter/http/request"
 	"github.com/Game-as-a-Service/The-Message/internal/adapter/sse"
-	"github.com/Game-as-a-Service/The-Message/internal/domain/entity"
 	"github.com/Game-as-a-Service/The-Message/internal/usecase"
 	"github.com/gin-gonic/gin"
 )
@@ -60,12 +59,6 @@ func (h *GameHandler) StartGame(c *gin.Context) {
 		return
 	}
 
-	game, err := h.gameUseCase.InitGame(c)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
-		return
-	}
-
 	// 轉換請求格式
 	createReq := usecase.CreateGameRequest{
 		Players: make([]usecase.PlayerInfo, len(req.Players)),
@@ -77,27 +70,9 @@ func (h *GameHandler) StartGame(c *gin.Context) {
 		}
 	}
 
-	if err := h.playerUseCase.InitPlayers(c, game, createReq); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
-		return
-	}
-
-	game, _ = h.gameUseCase.GetGameById(c, game.ID)
-	h.gameUseCase.UpdateCurrentPlayer(c, game, game.Players[0].ID)
-	h.gameUseCase.UpdateStatus(c, game, entity.GameStatusActionCardStage)
-
-	if err := h.gameUseCase.InitDeck(c, game); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
-		return
-	}
-
-	if err := h.gameUseCase.DrawCardsForAllPlayers(c, game); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
-		return
-	}
-
-	game, err = h.gameUseCase.GetGameById(c, game.ID)
+	game, err := h.gameUseCase.StartGame(c, createReq)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
