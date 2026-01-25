@@ -149,23 +149,16 @@ func (h *ActionPhaseHandler) Pass(c *gin.Context) {
 		return
 	}
 
-	allPassed, err := h.actionPhaseUseCase.Pass(c, gameID, req.PlayerID)
+	result, err := h.actionPhaseUseCase.Pass(c, gameID, req.PlayerID)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success":         true,
-		"all_passed":      allPassed,
-		"phase_changed":   allPassed,
-		"new_phase":       getNewPhase(allPassed),
+		"success":       true,
+		"all_passed":    result.AllPassed,
+		"phase_changed": result.AllPassed,
+		"new_phase":     result.NewPhase,
 	})
-}
-
-func getNewPhase(allPassed bool) string {
-	if allPassed {
-		return "INTELLIGENCE"
-	}
-	return "ACTION"
 }

@@ -7,6 +7,12 @@ import (
 	"github.com/Game-as-a-Service/The-Message/internal/domain/repository"
 )
 
+// PassResult 跳過行動結果
+type PassResult struct {
+	AllPassed bool
+	NewPhase  string
+}
+
 // ActionPhaseUseCase 行動階段用例介面
 type ActionPhaseUseCase interface {
 	// DrawCards 當前玩家抽牌（抽 2 張）
@@ -14,7 +20,7 @@ type ActionPhaseUseCase interface {
 	// PlayFunctionCard 出功能牌
 	PlayFunctionCard(ctx context.Context, gameID int, playerID int, cardID int) (*entity.Card, error)
 	// Pass 跳過行動
-	Pass(ctx context.Context, gameID int, playerID int) (bool, error)
+	Pass(ctx context.Context, gameID int, playerID int) (*PassResult, error)
 	// GetCurrentRound 取得當前回合
 	GetCurrentRound(ctx context.Context, gameID int) (int, error)
 }
@@ -173,26 +179,26 @@ func (uc *actionPhaseUseCase) PlayFunctionCard(ctx context.Context, gameID int, 
 }
 
 // Pass 跳過行動
-func (uc *actionPhaseUseCase) Pass(ctx context.Context, gameID int, playerID int) (bool, error) {
+func (uc *actionPhaseUseCase) Pass(ctx context.Context, gameID int, playerID int) (*PassResult, error) {
 	// 取得遊戲（含玩家）
 	game, err := uc.gameRepo.GetGameWithPlayers(ctx, gameID)
 	if err != nil {
-		return false, entity.ErrGameNotFound
+		return nil, entity.ErrGameNotFound
 	}
 
 	// 檢查遊戲是否在進行中
 	if game.Status != entity.GameRoomStatusPlaying {
-		return false, entity.ErrGameNotFound
+		return nil, entity.ErrGameNotFound
 	}
 
 	// 檢查是否在行動階段
 	if game.Phase != entity.GamePhaseAction {
-		return false, entity.ErrNotInActionPhase
+		return nil, entity.ErrNotInActionPhase
 	}
 
 	// 檢查是否是當前玩家
 	if game.CurrentPlayerID != playerID {
-		return false, entity.ErrNotYourTurn
+		return nil, entity.ErrNotYourTurn
 	}
 
 	// 取得當前回合
@@ -202,13 +208,13 @@ func (uc *actionPhaseUseCase) Pass(ctx context.Context, gameID int, playerID int
 	actionPass := entity.NewActionPass(gameID, playerID, round)
 	_, err = uc.actionPassRepo.CreateActionPass(ctx, actionPass)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// 檢查是否所有存活玩家都已 pass
 	passCount, err := uc.actionPassRepo.CountActionPassesByGameIDAndRound(ctx, gameID, round)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// 計算存活玩家數
@@ -225,11 +231,11 @@ func (uc *actionPhaseUseCase) Pass(ctx context.Context, gameID int, playerID int
 		game.Phase = entity.GamePhaseIntelligence
 		err = uc.gameRepo.UpdateGame(ctx, game)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 		// 清除 pass 記錄
 		_ = uc.actionPassRepo.DeleteActionPassesByGameIDAndRound(ctx, gameID, round)
-		return true, nil
+		return &PassResult{AllPassed: true, NewPhase: entity.GamePhaseIntelligence}, nil
 	}
 
 	// 切換到下一位玩家
@@ -237,10 +243,10 @@ func (uc *actionPhaseUseCase) Pass(ctx context.Context, gameID int, playerID int
 	game.CurrentPlayerID = nextPlayerID
 	err = uc.gameRepo.UpdateGame(ctx, game)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return false, nil
+	return &PassResult{AllPassed: false, NewPhase: entity.GamePhaseAction}, nil
 }
 
 // GetCurrentRound 取得當前回合（簡化實作，總是回傳 1）
