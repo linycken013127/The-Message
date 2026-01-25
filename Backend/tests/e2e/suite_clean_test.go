@@ -255,6 +255,10 @@ func (suite *CleanArchTestSuite) SetupTest() {
 	config.RunRefresh()
 	db := config.NewDatabase()
 	seeders.Run(db)
+
+	// 關閉臨時連線避免連線洩漏
+	sqlDB, _ := db.DB()
+	sqlDB.Close()
 }
 
 func (suite *CleanArchTestSuite) TearDownTest() {
