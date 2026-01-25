@@ -19,6 +19,12 @@ type CreateGameRequest struct {
 	Players []PlayerInfo
 }
 
+// AcceptCardResult 接收卡片結果
+type AcceptCardResult struct {
+	Accepted bool
+	Winner   *entity.Player
+}
+
 // PlayerUseCase 玩家用例介面
 type PlayerUseCase interface {
 	// InitPlayers 初始化玩家
@@ -41,10 +47,14 @@ type PlayerUseCase interface {
 	GetHandCardId(player *entity.Player, cardID int) (*entity.PlayerCard, error)
 	// PlayCard 出牌
 	PlayCard(ctx context.Context, playerID int, cardID int) (*entity.Game, *entity.Card, error)
+	// TransmitIntelligence 傳遞情報（包含驗證）
+	TransmitIntelligence(ctx context.Context, playerID int, cardID int) (bool, error)
 	// TransmitIntelligenceCard 傳情報卡
 	TransmitIntelligenceCard(ctx context.Context, playerID int, gameID int, cardID int) (bool, error)
 	// AcceptCard 接收卡片
 	AcceptCard(ctx context.Context, playerID int, accept bool) (bool, error)
+	// AcceptCardAndCheckWin 接收卡片並檢查勝利
+	AcceptCardAndCheckWin(ctx context.Context, playerID int, accept bool) (*AcceptCardResult, error)
 	// CheckWin 檢查勝利
 	CheckWin(ctx context.Context, playerID int) (*entity.Player, error)
 	// GetPlayerWithPlayerCards 取得玩家及其手牌
@@ -259,6 +269,24 @@ func (uc *playerUseCase) PlayCard(ctx context.Context, playerID int, cardID int)
 	return game, &handCard.Card, nil
 }
 
+// TransmitIntelligence 傳遞情報（包含驗證）
+func (uc *playerUseCase) TransmitIntelligence(ctx context.Context, playerID int, cardID int) (bool, error) {
+	player, err := uc.GetPlayerById(ctx, playerID)
+	if err != nil || player == nil {
+		return false, errors.New("player not found")
+	}
+
+	exist, err := uc.CheckPlayerCardExist(ctx, playerID, player.GameID, cardID)
+	if err != nil {
+		return false, err
+	}
+	if !exist {
+		return false, errors.New("card not found")
+	}
+
+	return uc.TransmitIntelligenceCard(ctx, playerID, player.GameID, cardID)
+}
+
 // TransmitIntelligenceCard 傳情報卡
 func (uc *playerUseCase) TransmitIntelligenceCard(ctx context.Context, playerID int, gameID int, cardID int) (bool, error) {
 	player, err := uc.playerRepo.GetPlayerWithGamePlayersAndPlayerCardsCard(ctx, playerID)
@@ -349,6 +377,21 @@ func (uc *playerUseCase) AcceptCard(ctx context.Context, playerID int, accept bo
 	}
 
 	return res, nil
+}
+
+// AcceptCardAndCheckWin 接收卡片並檢查勝利
+func (uc *playerUseCase) AcceptCardAndCheckWin(ctx context.Context, playerID int, accept bool) (*AcceptCardResult, error) {
+	accepted, err := uc.AcceptCard(ctx, playerID, accept)
+	if err != nil {
+		return nil, err
+	}
+
+	winner, _ := uc.CheckWin(ctx, playerID)
+
+	return &AcceptCardResult{
+		Accepted: accepted,
+		Winner:   winner,
+	}, nil
 }
 
 // CheckWin 檢查勝利

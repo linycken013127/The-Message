@@ -98,21 +98,9 @@ func (h *PlayerHandler) TransmitIntelligence(c *gin.Context) {
 		return
 	}
 
-	player, err := h.playerUseCase.GetPlayerById(c, playerID)
-	if err != nil || player == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Player not found"})
-		return
-	}
-
-	exist, err := h.playerUseCase.CheckPlayerCardExist(c, playerID, player.GameID, req.CardID)
-	if err != nil || !exist {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Card not found"})
-		return
-	}
-
-	ret, err := h.playerUseCase.TransmitIntelligenceCard(c, playerID, player.GameID, req.CardID)
+	ret, err := h.playerUseCase.TransmitIntelligence(c, playerID, req.CardID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 
@@ -142,23 +130,22 @@ func (h *PlayerHandler) AcceptCard(c *gin.Context) {
 		return
 	}
 
-	result, err := h.playerUseCase.AcceptCard(c, playerID, req.Accept)
+	result, err := h.playerUseCase.AcceptCardAndCheckWin(c, playerID, req.Accept)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
-	winner, err := h.playerUseCase.CheckWin(c, playerID)
-	if winner != nil {
+	if result.Winner != nil {
 		h.SSE.Message <- gin.H{
-			"game_id": winner.Game.ID,
-			"status":  winner.Game.Status,
+			"game_id": result.Winner.Game.ID,
+			"status":  result.Winner.Game.Status,
 			"message": fmt.Sprintf("玩家: %d 已贏得遊戲", playerID),
-			"winner":  winner.Name,
+			"winner":  result.Winner.Name,
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"result": result,
+		"result": result.Accepted,
 	})
 }
