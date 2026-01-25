@@ -273,7 +273,7 @@ func (uc *playerUseCase) PlayCard(ctx context.Context, playerID int, cardID int)
 func (uc *playerUseCase) TransmitIntelligence(ctx context.Context, playerID int, cardID int) (bool, error) {
 	player, err := uc.GetPlayerById(ctx, playerID)
 	if err != nil || player == nil {
-		return false, errors.New("player not found")
+		return false, errors.New("Player not found")
 	}
 
 	exist, err := uc.CheckPlayerCardExist(ctx, playerID, player.GameID, cardID)
@@ -281,7 +281,7 @@ func (uc *playerUseCase) TransmitIntelligence(ctx context.Context, playerID int,
 		return false, err
 	}
 	if !exist {
-		return false, errors.New("card not found")
+		return false, errors.New("Card not found")
 	}
 
 	return uc.TransmitIntelligenceCard(ctx, playerID, player.GameID, cardID)

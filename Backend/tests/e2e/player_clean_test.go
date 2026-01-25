@@ -115,7 +115,7 @@ func (suite *CleanArchTestSuite) TestTransmitIntelligenceE2E() {
 		resBody := make(map[string]interface{})
 		_ = json.Unmarshal(resBodyAsByteArray, &resBody)
 
-		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 		assert.Equal(t, "Card not found", resBody["message"])
 	})
 
@@ -134,7 +134,7 @@ func (suite *CleanArchTestSuite) TestTransmitIntelligenceE2E() {
 		resBody := make(map[string]interface{})
 		_ = json.Unmarshal(resBodyAsByteArray, &resBody)
 
-		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 		assert.Equal(t, "Player not found", resBody["message"])
 	})
 
@@ -153,7 +153,7 @@ func (suite *CleanArchTestSuite) TestTransmitIntelligenceE2E() {
 		resBody := make(map[string]interface{})
 		_ = json.Unmarshal(resBodyAsByteArray, &resBody)
 
-		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 		assert.Equal(t, "Card not found", resBody["message"])
 	})
 
@@ -184,7 +184,7 @@ func (suite *CleanArchTestSuite) TestTransmitIntelligenceE2E() {
 		resBody := make(map[string]interface{})
 		_ = json.Unmarshal(resBodyAsByteArray, &resBody)
 
-		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 		assert.Equal(t, "遊戲已結束", resBody["message"])
 
 		// Recover game status to start
@@ -215,7 +215,7 @@ func (suite *CleanArchTestSuite) TestTransmitIntelligenceE2E() {
 		resBody := make(map[string]interface{})
 		_ = json.Unmarshal(resBodyAsByteArray, &resBody)
 
-		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 		assert.Equal(t, "尚未輪到你出牌", resBody["message"])
 	})
 
